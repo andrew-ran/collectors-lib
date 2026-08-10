@@ -1,5 +1,7 @@
 # Collectors Lib
 
+**The collection tracker your friends check before they buy you a gift.**
+
 > A beautiful, self-hosted web app to showcase your retro game & peripheral collection and manage your wishlist.
 
 **Status:** 🚧 In development
@@ -20,21 +22,6 @@ Inspired by EmulationStation Desktop Edition — but built for the web, for coll
 - 🎁 Wishlist fields: condition preference, edition, estimated prices
 - 🌐 Fully public — share your collection URL with anyone
 - 🐳 Self-hostable via Docker
-
-## Documentation
-
-All project documentation lives in [`/docs`](./docs):
-
-| File | Description |
-|------|-------------|
-| [PROJECT.md](./docs/PROJECT.md) | Project vision, goals, scope |
-| [COMPETITORS.md](./docs/COMPETITORS.md) | Market analysis |
-| [TECH_STACK.md](./docs/TECH_STACK.md) | Technology decisions and rationale |
-| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System architecture |
-| [DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) | Data model |
-| [API_SOURCES.md](./docs/API_SOURCES.md) | External data sources (IGDB, etc.) |
-| [ROADMAP.md](./docs/ROADMAP.md) | Development phases |
-| [tz/REQUIREMENTS.md](./docs/tz/REQUIREMENTS.md) | Full technical specification (WIP) |
 
 ## Tech Stack
 
