@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Laravel Tests
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: secret
+          MYSQL_DATABASE: collectors_lib_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql, imagick
+      - name: Install dependencies
+        working-directory: ./src/backend
+        run: composer install --no-interaction --prefer-dist
+      - name: Copy .env
+        working-directory: ./src/backend
+        run: cp .env.testing.example .env.testing
+      - name: Run tests
+        working-directory: ./src/backend
+        run: php artisan test --env=testing
+
+  frontend:
+    name: React Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: ./src/frontend
+        run: npm ci
+      - name: Lint
+        working-directory: ./src/frontend
+        run: npm run lint
+      - name: Type check
+        working-directory: ./src/frontend
+        run: npm run typecheck
+      - name: Test
+        working-directory: ./src/frontend
+        run: npm run test

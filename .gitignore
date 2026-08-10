@@ -1,0 +1,13 @@
+# Internal planning docs — not published with the project.
+# Public-facing product info lives in README.md instead.
+docs/
+
+# Obsidian vault config (local-only workspace state)
+.obsidian/
+
+# macOS
+.DS_Store
+
+# NOTE: once Laravel (src/backend) and React/Vite (src/frontend) are scaffolded
+# in Phase 0, their own generated .gitignore entries (vendor/, node_modules/,
+# .env, storage/*.key, etc.) should be merged in here.
