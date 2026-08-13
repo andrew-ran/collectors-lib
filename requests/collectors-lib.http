@@ -1,0 +1,67 @@
+### Health check
+GET {{base_url}}/up
+
+### API health
+GET {{base_url}}/api/health
+
+### Login -- captures the token into a client-global variable for the
+### requests below (persists for the session, not saved to disk).
+# @name login
+POST {{base_url}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{admin_email}}",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    client.global.set("token", response.body.token);
+%}
+
+### Current admin (US-101)
+GET {{base_url}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Logout
+POST {{base_url}}/api/auth/logout
+Authorization: Bearer {{token}}
+
+### List items (public, no auth) -- optional ?collection_id=
+GET {{base_url}}/api/items
+
+### List items in one collection
+GET {{base_url}}/api/items?collection_id=1
+
+### Show a single item (public, no auth)
+GET {{base_url}}/api/items/1
+
+### Create item -- manual add, no igdb_id (US-121/US-122 style)
+# @name createItem
+POST {{base_url}}/api/items
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "collection_id": 1,
+  "type": "game",
+  "title": "Example Manual Item",
+  "platform_id": null,
+  "acquired_date": "2026-08-01",
+  "acquired_date_precision": "day",
+  "purchase_price": 19.99,
+  "notes": "Created from the PHPStorm HTTP Client for a quick smoke test."
+}
+
+### Update item -- replace {{id}} with a real item id (e.g. from createItem above)
+PUT {{base_url}}/api/items/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Updated title"
+}
+
+### Delete item (US-115) -- replace {{id}} with a real item id
+DELETE {{base_url}}/api/items/1
+Authorization: Bearer {{token}}
