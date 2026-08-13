@@ -1,0 +1,31 @@
+<?php
+
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ItemController;
+use Illuminate\Support\Facades\Route;
+
+// Phase 0 sanity check -- see ROADMAP.md Phase 0 deliverable.
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok']);
+});
+
+Route::middleware('throttle:api')->group(function () {
+    // US-100 -- stricter throttle on top of the general API one, see
+    // AppServiceProvider's 'login' rate limiter.
+    Route::middleware('throttle:login')->post('/auth/login', [AuthController::class, 'login']);
+
+    // Public browsing -- no auth required, see ARCHITECTURE.md Authentication.
+    Route::get('/items', [ItemController::class, 'index']);
+    Route::get('/items/{item}', [ItemController::class, 'show']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/auth/logout', [AuthController::class, 'logout']); // US-102
+        Route::get('/auth/me', [AuthController::class, 'me']); // US-101
+
+        Route::post('/items', [ItemController::class, 'store']);
+        Route::put('/items/{item}', [ItemController::class, 'update']);
+        Route::delete('/items/{item}', [ItemController::class, 'destroy']); // US-115
+
+        // IGDB-search-based add (US-110) mounts here once IgdbService is live.
+    });
+});
