@@ -8,6 +8,13 @@ docs/
 # macOS
 .DS_Store
 
-# NOTE: once Laravel (src/backend) and React/Vite (src/frontend) are scaffolded
-# in Phase 0, their own generated .gitignore entries (vendor/, node_modules/,
-# .env, storage/*.key, etc.) should be merged in here.
+# PHPStorm HTTP Client -- contains real admin credentials for local testing.
+requests/http-client.private.env.json
+
+# PHPStorm project settings (local-only; not shared via the repo).
+.idea/
+
+# Laravel (src/backend) and React/Vite (src/frontend) each ship their own
+# .gitignore, and git respects nested .gitignore files automatically --
+# vendor/, node_modules/, .env, etc. are already covered there, no need
+# to duplicate them here.

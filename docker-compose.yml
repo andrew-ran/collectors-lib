@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: ./src/backend
+    volumes:
+      - ./src/backend:/var/www/html
+    depends_on:
+      - db
+      - redis
+
+  queue:
+    build:
+      context: ./src/backend
+    command: php artisan queue:work --tries=3
+    volumes:
+      - ./src/backend:/var/www/html
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./src/frontend:/app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      # Host port 80 is taken by a native Homebrew nginx, and 8080 is taken
+      # by a native Apache (Personal Web Sharing / MAMP-style vhosts under
+      # /private/etc/apache2/vhosts/) serving other local projects -- see
+      # docs/tz/NEXT_STEPS.md.
+      - "8090:80"
+    volumes:
+      - ./src/backend:/var/www/html:ro
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+      - frontend
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: collectors_lib
+      MYSQL_USER: collectors_lib
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: secret
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      # Host port 3306 is already taken by another local MySQL install.
+      - "3307:3306"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  db_data:
