@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom'
 import { HomePlaceholder } from './pages/HomePlaceholder'
 import { AdminLoginPage } from './pages/AdminLoginPage'
 import { AdminPage } from './pages/AdminPage'
+import { AdminAddItemPage } from './pages/AdminAddItemPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/add" element={<AdminAddItemPage />} />
       </Route>
     </Routes>
   )

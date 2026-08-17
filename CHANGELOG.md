@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend auth: axios client with Bearer-token interceptor, zustand auth store (persisted to localStorage), TanStack Query hooks (`useLogin`/`useLogout`/`useCurrentAdmin`), `ProtectedRoute`, `/admin/login` and `/admin` pages, routing via react-router-dom (US-100/101/102, full stack).
 - Xdebug installed in the backend `Dockerfile` (dev image only) + `src/backend/docker/xdebug.ini`, for PHPStorm step debugging.
 - PHPStorm HTTP Client requests (`requests/collectors-lib.http`, `requests/http-client.env.json`) covering health check, auth login/me/logout, and item CRUD.
+- US-110 (admin add-item via IGDB search), full stack: `GET /api/search/igdb` (`IgdbSearchController`, matches/creates local `Platform` rows by `igdb_id` on the fly), `GET /api/collections` (`CollectionController`), and `AdminAddItemPage.tsx` (collection picker, ~400ms debounced search, result list with cover thumbnails, platform-confirm step, US-111 "Scraping...→Ready" status per added item).
 
 ### Fixed
 - `Dockerfile` was missing the `redis` PHP extension, breaking anything touching cache/queue/rate-limiting ("Class \"Redis\" not found").
@@ -33,3 +34,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `db` service host port moved from 3306 → 3307 (3306 is already used by another local MySQL install). Internal `DB_PORT` in `.env` stays 3306 (container-to-container, unaffected).
 - `ScrapeItemMetadataJob` never matched/attached genres (`item_genres` stayed empty despite `igdb_raw.genres` having data) — added `matchGenres()` (mirrors `matchFranchise()`) and `item->genres()->sync(...)`.
 - `ScrapeItemMetadataJob` only overwrote `title` when it was empty (`?:`), which never happens since `title` is required at creation — title is now always overwritten with IGDB's name once an item has an `igdb_id`, since IGDB is the authoritative source.
+- `IgdbSearchController::matchPlatform()` matched existing platforms by `igdb_id` only, colliding on the unique `slug` constraint against `PlatformSeeder`'s pre-seeded rows (which intentionally have `igdb_id = null`) — e.g. searching a PS4 title 500'd on a duplicate `playstation-4` slug. Now also falls back to matching by slug and backfills `igdb_id` on the existing row instead of trying to insert a duplicate.
+- `AdminAddItemPage.tsx` silently swallowed search errors (just stopped showing "Searching..." with no result and no error) — added error display and a "No results." state.
