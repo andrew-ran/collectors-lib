@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CollectionController;
+use App\Http\Controllers\Api\IgdbSearchController;
 use App\Http\Controllers\Api\ItemController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +19,7 @@ Route::middleware('throttle:api')->group(function () {
     // Public browsing -- no auth required, see ARCHITECTURE.md Authentication.
     Route::get('/items', [ItemController::class, 'index']);
     Route::get('/items/{item}', [ItemController::class, 'show']);
+    Route::get('/collections', [CollectionController::class, 'index']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']); // US-102
@@ -26,6 +29,7 @@ Route::middleware('throttle:api')->group(function () {
         Route::put('/items/{item}', [ItemController::class, 'update']);
         Route::delete('/items/{item}', [ItemController::class, 'destroy']); // US-115
 
-        // IGDB-search-based add (US-110) mounts here once IgdbService is live.
+        // US-110 -- admin-only IGDB search for the "add item" flow.
+        Route::get('/search/igdb', [IgdbSearchController::class, 'search']);
     });
 });

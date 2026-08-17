@@ -8,11 +8,7 @@ use RuntimeException;
 
 /**
  * IGDB client (Twitch OAuth + Apicalypse queries). See docs/API_SOURCES.md.
- *
- * Not yet exercised end-to-end -- blocked on Twitch 2FA for
- * IGDB_CLIENT_ID/IGDB_CLIENT_SECRET (see docs/tz/NEXT_STEPS.md). Written
- * complete and ready to go: once those two .env values are set, nothing
- * else needs to change here or in ScrapeItemMetadataJob.
+ * Verified live end-to-end 2026-08-17.
  */
 class IgdbService
 {
@@ -47,7 +43,10 @@ class IgdbService
     public function search(string $query, int $limit = 10): array
     {
         $body = 'search "'.$this->escape($query)."\";\n"
-            .'fields id, name, cover.url, first_release_date, platforms.abbreviation;'."\n"
+            // platforms.name is needed (not just .abbreviation) so a
+            // not-yet-seen platform can be matched/created locally by name --
+            // see IgdbSearchController (US-110).
+            .'fields id, name, cover.url, first_release_date, platforms.id, platforms.name, platforms.abbreviation;'."\n"
             ."limit {$limit};";
 
         return $this->query('games', $body);
