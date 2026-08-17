@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AdminUserSeeder` (reads `ADMIN_EMAIL`/`ADMIN_PASSWORD` from `.env`).
 - Item CRUD (`ItemController`): public `GET /api/items`, `GET /api/items/{item}`; auth-gated create/update/delete (US-115/116).
 - Rate limiting: general `api` limiter + a stricter `login` limiter (`AppServiceProvider`).
-- `IgdbService` (Twitch OAuth + Apicalypse queries) and `ScrapeItemMetadataJob` (franchise/company matching included) — written and wired end-to-end, not yet exercised live pending IGDB credentials.
+- `IgdbService` (Twitch OAuth + Apicalypse queries) and `ScrapeItemMetadataJob` (franchise/company/genre matching included) — exercised live end-to-end 2026-08-17 (Twitch app credentials obtained, `POST /api/items` with a real `igdb_id` correctly scraped description, release year, franchise, developer/publisher, genres, and raw IGDB payload).
 - Frontend auth: axios client with Bearer-token interceptor, zustand auth store (persisted to localStorage), TanStack Query hooks (`useLogin`/`useLogout`/`useCurrentAdmin`), `ProtectedRoute`, `/admin/login` and `/admin` pages, routing via react-router-dom (US-100/101/102, full stack).
 - Xdebug installed in the backend `Dockerfile` (dev image only) + `src/backend/docker/xdebug.ini`, for PHPStorm step debugging.
 - PHPStorm HTTP Client requests (`requests/collectors-lib.http`, `requests/http-client.env.json`) covering health check, auth login/me/logout, and item CRUD.
@@ -31,3 +31,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - nginx dotfile-deny rule was blocking Vite's `/node_modules/.vite/deps/...` cache requests (403) — removed, see `docker/nginx.conf`.
 - Docker nginx moved from host port 80 → 8080 → 8090. Port 80 is taken by a native Homebrew nginx, and port 8080 turned out to be taken by that same native nginx too (serving other local vhosts, e.g. `Fortis`) — requests to `:8080` were silently answered by it instead of our container. `docker-compose.yml` and `.env`/`.env.example` (`APP_URL`, `FRONTEND_URL`) updated to `collectors-lib.test:8090`.
 - `db` service host port moved from 3306 → 3307 (3306 is already used by another local MySQL install). Internal `DB_PORT` in `.env` stays 3306 (container-to-container, unaffected).
+- `ScrapeItemMetadataJob` never matched/attached genres (`item_genres` stayed empty despite `igdb_raw.genres` having data) — added `matchGenres()` (mirrors `matchFranchise()`) and `item->genres()->sync(...)`.
+- `ScrapeItemMetadataJob` only overwrote `title` when it was empty (`?:`), which never happens since `title` is required at creation — title is now always overwritten with IGDB's name once an item has an `igdb_id`, since IGDB is the authoritative source.

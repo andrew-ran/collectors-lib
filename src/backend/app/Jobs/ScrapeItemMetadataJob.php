@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\ScrapeStatus;
 use App\Models\Company;
 use App\Models\Franchise;
+use App\Models\Genre;
 use App\Models\Item;
 use App\Services\IgdbService;
 use Illuminate\Bus\Queueable;
@@ -72,11 +73,15 @@ class ScrapeItemMetadataJob implements ShouldQueue
         ]);
 
         $this->matchCompanies($involvedCompanies);
+        $item->genres()->sync($this->matchGenres($game['genres'] ?? []));
 
         $item->update([
             'scrape_status' => ScrapeStatus::Scraped,
             'scraped_at' => now(),
-            'title' => $item->title ?: ($game['name'] ?? $item->title),
+            // IGDB is the authoritative title once an igdb_id is set -- the
+            // title supplied at creation (e.g. a search-result label or a
+            // placeholder) is always superseded by the scrape.
+            'title' => $game['name'] ?? $item->title,
         ]);
 
         // Cover download + WebP conversion (ImageService) is a separate,
@@ -93,6 +98,20 @@ class ScrapeItemMetadataJob implements ShouldQueue
             ['igdb_id' => $franchise['id']],
             ['name' => $franchise['name'], 'slug' => Str::slug($franchise['name'])],
         )->id;
+    }
+
+    /**
+     * @param  array<int, array{id: int, name: string}>  $genres
+     * @return array<int, int> Genre ids, for item->genres()->sync().
+     */
+    private function matchGenres(array $genres): array
+    {
+        return collect($genres)
+            ->map(fn (array $genre) => Genre::firstOrCreate(
+                ['igdb_id' => $genre['id']],
+                ['name' => $genre['name'], 'slug' => Str::slug($genre['name'])],
+            )->id)
+            ->all();
     }
 
     private function matchCompanies(array $involvedCompanies): void
