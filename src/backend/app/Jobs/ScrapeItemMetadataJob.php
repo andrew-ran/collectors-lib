@@ -32,9 +32,7 @@ class ScrapeItemMetadataJob implements ShouldQueue
 
     public int $tries = 3;
 
-    public function __construct(private readonly int $itemId)
-    {
-    }
+    public function __construct(private readonly int $itemId) {}
 
     public function handle(IgdbService $igdb): void
     {
