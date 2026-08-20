@@ -140,7 +140,9 @@ class ItemController extends Controller
                 'metadata.franchise',
                 'photos',
                 'genres',
-                'wishlistDetail',
+                // US-021 -- the gifter's name/avatar are needed for the
+                // acquisition badge, so load one level deeper than before.
+                'wishlistDetail.gifter',
             ]),
         );
     }

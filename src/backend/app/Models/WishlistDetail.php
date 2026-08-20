@@ -5,11 +5,16 @@ namespace App\Models;
 use App\Enums\AcquisitionType;
 use App\Enums\ConditionPreference;
 use App\Enums\Priority;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WishlistDetail extends Model
 {
+    // US-020 -- appended so the public Item View can render the priority
+    // badge straight off the API response instead of re-deriving it.
+    protected $appends = ['priority'];
+
     protected $fillable = [
         'item_id',
         'condition_preference',
@@ -53,8 +58,10 @@ class WishlistDetail extends Model
     /**
      * Derived from desire_score, not stored -- see US-020 and the migration's note.
      */
-    public function priority(): ?Priority
+    protected function priority(): Attribute
     {
-        return Priority::fromDesireScore($this->desire_score);
+        return Attribute::make(
+            get: fn (): ?Priority => Priority::fromDesireScore($this->desire_score),
+        );
     }
 }
