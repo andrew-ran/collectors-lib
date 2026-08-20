@@ -5,10 +5,13 @@ import {
   useCollectionItems,
   useFilterOptions,
   useItem,
+  type ConditionPreference,
   type FilterOptions,
   type IgdbRef,
   type ItemDetail,
+  type Priority,
   type SortOrder,
+  type WishlistDetailRef,
 } from '../api/items'
 import { Dropdown, DropdownItem } from '../components/Dropdown'
 
@@ -32,14 +35,23 @@ function toIntOrNull(value: string | null): number | null {
  * position indicator. Filters/collection/sort are reflected in the URL
  * (US-008b) so a view can be bookmarked or shared.
  *
+ * Also covers US-020/021/022/023: Wishlist-only fields (condition
+ * preference, edition note, estimated price) and the priority badge on
+ * Wishlist cards, plus the Gifted/Purchased acquisition badge once an item
+ * has left the Wishlist for a regular collection.
+ *
  * Deliberately scoped down for this pass -- explicitly NOT included yet
  * (see docs/tz/BACKLOG.md Phase 2):
  * - US-011 sequel/prequel/remake tag interactivity (in-collection/wishlist
  *   cross-referencing) -- tags render as plain, non-clickable labels
  * - US-012 photo slider/lightbox -- no admin-uploaded photos exist yet,
  *   just the single primary cover image
- * - US-020/021 wishlist fields and the Gifted/Purchased badge, and the
- *   Wishlist-specific desire-score/price sort options that depend on them
+ * - US-170/171 currency selector/conversion -- wishlist prices render as
+ *   plain numbers, no currency symbol or conversion yet
+ * - Wishlist's Most/Least-wanted and Price sort options (US-009) -- the
+ *   fields exist now, but the sort UI itself isn't wired up in this pass
+ * - Real test data for the acquisition badge needs US-151 (mark received)
+ *   to exist, or a manually seeded wishlist_details row + collection move
  */
 export function CollectionItemViewPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -115,6 +127,7 @@ export function CollectionItemViewPage() {
       <ItemBrowser
         key={`${collection.id}-${platformId ?? ''}-${genreId ?? ''}-${franchiseId ?? ''}-${sort}`}
         collectionId={collection.id}
+        isWishlist={collection.is_wishlist}
         platformId={platformId}
         genreId={genreId}
         franchiseId={franchiseId}
@@ -128,6 +141,7 @@ export function CollectionItemViewPage() {
 
 function ItemBrowser({
   collectionId,
+  isWishlist,
   platformId,
   genreId,
   franchiseId,
@@ -136,6 +150,7 @@ function ItemBrowser({
   onResetFilters,
 }: {
   collectionId: number
+  isWishlist: boolean
   platformId: number | null
   genreId: number | null
   franchiseId: number | null
@@ -186,7 +201,7 @@ function ItemBrowser({
       <div className="flex w-full flex-1 items-center justify-center gap-3 sm:gap-6">
         <NavButton direction="prev" onClick={goPrev} disabled={clampedIndex === 0} />
 
-        {item ? <ItemCard item={item} /> : <ItemCardSkeleton />}
+        {item ? <ItemCard item={item} isWishlist={isWishlist} /> : <ItemCardSkeleton />}
 
         <NavButton
           direction="next"
@@ -462,12 +477,25 @@ function NavButton({
   )
 }
 
-function ItemCard({ item }: { item: ItemDetail }) {
+const CONDITION_LABELS: Record<ConditionPreference, string> = {
+  new_only: 'New only',
+  used_ok: 'Used is OK',
+  cartridge_only: 'Cartridge only (no box)',
+}
+
+function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean }) {
   const meta = item.metadata
+  const wishlist = item.wishlist_detail
+
+  // US-020/021 -- mutually exclusive per the spec: an item either still
+  // wants (Wishlist -> priority badge) or has already been acquired
+  // (moved to a regular collection -> acquisition badge), never both.
+  const showPriorityBadge = isWishlist && wishlist?.priority
+  const showAcquisitionBadge = !isWishlist && wishlist?.received
 
   return (
     <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm sm:flex-row">
-      <div className="aspect-[3/4] w-full shrink-0 bg-neutral-100 sm:w-64">
+      <div className="relative aspect-[3/4] w-full shrink-0 bg-neutral-100 sm:w-64">
         {item.cover_url ? (
           <img src={item.cover_url} alt={item.title} className="h-full w-full object-cover" />
         ) : (
@@ -475,6 +503,11 @@ function ItemCard({ item }: { item: ItemDetail }) {
             No cover
           </div>
         )}
+
+        {showPriorityBadge && wishlist && (
+          <PriorityBadge priority={wishlist.priority as Priority} desireScore={wishlist.desire_score ?? 0} />
+        )}
+        {showAcquisitionBadge && wishlist && <AcquisitionBadge detail={wishlist} />}
       </div>
 
       <div className="flex flex-1 flex-col gap-3 p-5">
@@ -520,7 +553,144 @@ function ItemCard({ item }: { item: ItemDetail }) {
             tags={[...meta.prequels, ...meta.sequels, ...meta.remakes]}
           />
         )}
+
+        {isWishlist && wishlist && <WishlistFields detail={wishlist} />}
       </div>
+    </div>
+  )
+}
+
+/** US-020 -- the Wishlist-only fields shown alongside the US-010 base info:
+ * condition preference, a free-text edition note, and estimated price. */
+function WishlistFields({ detail }: { detail: WishlistDetailRef }) {
+  const hasPriceEstimate = detail.price_new_estimate !== null || detail.price_used_estimate !== null
+
+  if (!detail.condition_preference && !detail.edition_note && !hasPriceEstimate) {
+    return null
+  }
+
+  return (
+    <div className="flex flex-col gap-1 border-t border-neutral-100 pt-3 text-sm text-neutral-600">
+      {detail.condition_preference && (
+        <p>
+          Condition: <span className="text-neutral-800">{CONDITION_LABELS[detail.condition_preference]}</span>
+        </p>
+      )}
+      {detail.edition_note && (
+        <p>
+          Note: <span className="text-neutral-800">{detail.edition_note}</span>
+        </p>
+      )}
+      {hasPriceEstimate && (
+        <p>
+          Est. price:{' '}
+          <span className="text-neutral-800">
+            {[
+              detail.price_new_estimate && `new ${detail.price_new_estimate}`,
+              detail.price_used_estimate && `used ${detail.price_used_estimate}`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </p>
+      )}
+    </div>
+  )
+}
+
+const PRIORITY_ICON: Record<Priority, string> = {
+  low: '🧊',
+  medium: '🟠',
+  high: '☄️',
+}
+
+/** US-020/023 -- circular badge over the cover's bottom-left corner.
+ * Clicking expands the circle into a pill showing the exact desire score
+ * as a percentage; clicking again collapses it back to just the icon.
+ * Click-based (not hover) so it behaves the same on touch and desktop. */
+function PriorityBadge({ priority, desireScore }: { priority: Priority; desireScore: number }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <button
+      type="button"
+      onClick={() => setExpanded((e) => !e)}
+      aria-label={`Priority: ${priority}`}
+      className={`absolute bottom-2 left-2 flex h-9 cursor-pointer items-center gap-1.5 rounded-full border border-white/70 bg-neutral-900/80 text-white shadow-md backdrop-blur transition-all ${
+        expanded ? 'px-3' : 'w-9 justify-center px-0'
+      }`}
+    >
+      <span className="text-base leading-none">{PRIORITY_ICON[priority]}</span>
+      {expanded && <span className="text-xs font-medium whitespace-nowrap">{desireScore}%</span>}
+    </button>
+  )
+}
+
+/** US-021/022 -- shown only once an item has left the Wishlist for a
+ * regular collection (wishlist_detail.received === true). Three states:
+ * a registered gifter (avatar, hover tooltip with their name, click expands
+ * to a pill with the thank-you note), a gift with no gifter on file (gift
+ * box icon, tooltip only, not interactive), or a self-purchase (wallet +
+ * checkmark, tooltip only, not interactive). Mutually exclusive with
+ * PriorityBadge -- same card position, see US-021's spec note. */
+function AcquisitionBadge({ detail }: { detail: WishlistDetailRef }) {
+  const [expanded, setExpanded] = useState(false)
+  const [hovered, setHovered] = useState(false)
+
+  const gifted = detail.acquisition_type === 'gifted'
+  const gifter = gifted ? detail.gifter : null
+  // Only the "registered gifter" state expands -- per spec, both the
+  // no-gifter-on-file and self-purchased states are tooltip-only.
+  const expandable = Boolean(gifter)
+
+  let icon: ReactNode
+  let tooltip: string
+
+  if (gifter) {
+    icon = gifter.avatar_path ? (
+      <img src={gifter.avatar_path} alt="" className="h-full w-full rounded-full object-cover" />
+    ) : (
+      <span className="text-base leading-none">🎁</span>
+    )
+    tooltip = gifter.name
+  } else if (gifted) {
+    icon = <span className="text-base leading-none">🎁</span>
+    tooltip = detail.gifter_name_override ?? 'Gifted'
+  } else {
+    icon = (
+      <span className="relative flex h-full w-full items-center justify-center text-base leading-none">
+        👛
+        <span className="absolute -right-0.5 -bottom-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-green-500 text-[8px] leading-none text-white">
+          ✓
+        </span>
+      </span>
+    )
+    tooltip = 'Purchased'
+  }
+
+  return (
+    <div className="absolute bottom-2 left-2">
+      {hovered && !expanded && (
+        <div className="absolute bottom-full left-0 mb-1.5 rounded-xl rounded-bl-none border border-neutral-200 bg-white px-2.5 py-1 text-xs whitespace-nowrap text-neutral-700 shadow-md">
+          {tooltip}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => expandable && setExpanded((e) => !e)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        aria-label={tooltip}
+        className={`flex h-9 items-center gap-1.5 overflow-hidden rounded-full border border-white/70 bg-neutral-900/80 text-white shadow-md backdrop-blur transition-all ${
+          expandable ? 'cursor-pointer' : 'cursor-default'
+        } ${expanded ? 'px-3' : 'w-9 justify-center px-0'}`}
+      >
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center">{icon}</span>
+        {expanded && detail.thank_you_note && (
+          <span className="text-xs whitespace-nowrap">{detail.thank_you_note}</span>
+        )}
+      </button>
     </div>
   )
 }

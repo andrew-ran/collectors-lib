@@ -173,6 +173,37 @@ export interface ItemMetadataDetail {
   remakes: IgdbRef[]
 }
 
+/** US-021/022 -- only present when the item has a gifter row set for it. */
+export interface GifterRef {
+  id: number
+  name: string
+  avatar_path: string | null
+}
+
+export type ConditionPreference = 'new_only' | 'used_ok' | 'cartridge_only'
+export type AcquisitionType = 'gifted' | 'self_purchased'
+export type Priority = 'low' | 'medium' | 'high'
+
+/** US-020/021/023 -- present whenever the item was added through (or still
+ * lives in) the Wishlist. `priority` is server-derived from `desire_score`
+ * (see WishlistDetail::priority()). Money fields come back as decimal
+ * strings from Laravel; currency display/conversion is US-170/171, not
+ * done yet -- rendered as plain numbers for now. */
+export interface WishlistDetailRef {
+  condition_preference: ConditionPreference | null
+  edition_note: string | null
+  price_new_estimate: string | null
+  price_used_estimate: string | null
+  desire_score: number | null
+  priority: Priority | null
+  received: boolean
+  acquisition_type: AcquisitionType | null
+  price_paid: string | null
+  gifter: GifterRef | null
+  gifter_name_override: string | null
+  thank_you_note: string | null
+}
+
 export interface ItemDetail {
   id: number
   title: string
@@ -183,6 +214,7 @@ export interface ItemDetail {
   platform: PlatformRef | null
   genres: GenreRef[]
   metadata: ItemMetadataDetail | null
+  wishlist_detail: WishlistDetailRef | null
 }
 
 /** US-010 -- full detail for the currently displayed card. */
