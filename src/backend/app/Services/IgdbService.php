@@ -64,6 +64,22 @@ class IgdbService
         return $results[0] ?? null;
     }
 
+    /**
+     * Other games sharing an IGDB franchise id, ordered by release date --
+     * used to approximate sequels/prequels since IGDB has no direct
+     * "sequel"/"prequel" relation on the Game object (see
+     * ScrapeItemMetadataJob::relatedByFranchise() and docs/tz/TECH_DEBT.md).
+     */
+    public function gamesInFranchise(int $franchiseId, int $excludeGameId, int $limit = 50): array
+    {
+        $body = 'fields id, name, first_release_date;'."\n"
+            ."where franchises = ({$franchiseId}) & id != {$excludeGameId};\n"
+            ."sort first_release_date asc;\n"
+            ."limit {$limit};";
+
+        return $this->query('games', $body);
+    }
+
     private function query(string $endpoint, string $apicalypseBody): array
     {
         $response = Http::withHeaders([

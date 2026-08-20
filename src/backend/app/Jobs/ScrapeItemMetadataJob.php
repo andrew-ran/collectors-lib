@@ -53,6 +53,7 @@ class ScrapeItemMetadataJob implements ShouldQueue
         }
 
         $involvedCompanies = $game['involved_companies'] ?? [];
+        $related = $this->relatedByFranchise($igdb, $game);
 
         $item->metadata()->updateOrCreate([], [
             'description' => $game['summary'] ?? null,
@@ -63,9 +64,12 @@ class ScrapeItemMetadataJob implements ShouldQueue
             'developer' => $this->companyName($involvedCompanies, developer: true),
             'publisher' => $this->companyName($involvedCompanies, developer: false),
             'other_platforms' => $game['platforms'] ?? [],
-            'sequels' => $game['similar_games'] ?? [],
-            'prequels' => [],
+            'sequels' => $related['sequels'],
+            'prequels' => $related['prequels'],
             'remakes' => $game['remakes'] ?? [],
+            // Captured but not shown in the UI yet -- see US-011 tech debt
+            // note, may be surfaced alongside remakes later.
+            'remasters' => $game['remasters'] ?? [],
             'dlcs' => $game['dlcs'] ?? [],
             'igdb_raw' => $game,
         ]);
@@ -84,6 +88,53 @@ class ScrapeItemMetadataJob implements ShouldQueue
 
         // Cover download + WebP conversion (ImageService) is a separate,
         // not-yet-built follow-up -- see ARCHITECTURE.md's ImageService.
+    }
+
+    /**
+     * US-011's "sequels/prequels" fields are approximated, not exact --
+     * IGDB has no direct sequel/prequel relation on the Game object (only
+     * franchise/collection membership + similar_games, a fuzzy similarity
+     * match we deliberately don't use here anymore). This takes every other
+     * game sharing the item's first IGDB franchise and splits it by
+     * first_release_date relative to this game's own release date: earlier
+     * = prequel, later = sequel. That also catches spin-offs, side games,
+     * and re-releases in the same franchise, not just direct numbered
+     * entries -- a known limitation, tracked in docs/tz/TECH_DEBT.md for a
+     * more precise rework later. Games with no franchise or no release date
+     * (either the current game's, or a candidate's) can't be classified and
+     * are skipped.
+     *
+     * @return array{sequels: array<int, array{id: int, name: string}>, prequels: array<int, array{id: int, name: string}>}
+     */
+    private function relatedByFranchise(IgdbService $igdb, array $game): array
+    {
+        $franchiseIgdbId = $game['franchises'][0]['id'] ?? null;
+        $releaseDate = $game['first_release_date'] ?? null;
+
+        if (! $franchiseIgdbId || ! $releaseDate) {
+            return ['sequels' => [], 'prequels' => []];
+        }
+
+        $franchiseGames = $igdb->gamesInFranchise($franchiseIgdbId, $game['id']);
+
+        $prequels = [];
+        $sequels = [];
+
+        foreach ($franchiseGames as $related) {
+            if (! isset($related['first_release_date'])) {
+                continue;
+            }
+
+            $ref = ['id' => $related['id'], 'name' => $related['name']];
+
+            if ($related['first_release_date'] < $releaseDate) {
+                $prequels[] = $ref;
+            } elseif ($related['first_release_date'] > $releaseDate) {
+                $sequels[] = $ref;
+            }
+        }
+
+        return ['sequels' => $sequels, 'prequels' => $prequels];
     }
 
     private function matchFranchise(?array $franchise): ?int

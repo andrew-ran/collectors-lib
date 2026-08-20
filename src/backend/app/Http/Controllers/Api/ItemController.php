@@ -133,18 +133,61 @@ class ItemController extends Controller
 
     public function show(Item $item)
     {
-        return response()->json(
-            $item->load([
-                'platform',
-                'collection',
-                'metadata.franchise',
-                'photos',
-                'genres',
-                // US-021 -- the gifter's name/avatar are needed for the
-                // acquisition badge, so load one level deeper than before.
-                'wishlistDetail.gifter',
-            ]),
-        );
+        $item->load([
+            'platform',
+            'collection',
+            'metadata.franchise',
+            'photos',
+            'genres',
+            // US-021 -- the gifter's name/avatar are needed for the
+            // acquisition badge, so load one level deeper than before.
+            'wishlistDetail.gifter',
+        ]);
+
+        if ($item->metadata) {
+            $item->metadata->setAttribute('sequels', $this->enrichRelatedGames($item->metadata->sequels ?? []));
+            $item->metadata->setAttribute('prequels', $this->enrichRelatedGames($item->metadata->prequels ?? []));
+            $item->metadata->setAttribute('remakes', $this->enrichRelatedGames($item->metadata->remakes ?? []));
+        }
+
+        return response()->json($item);
+    }
+
+    /**
+     * US-011 -- for each sequel/prequel/remake tag (raw {id, name} from
+     * IGDB), attach whether that game is already owned or wishlisted
+     * locally, plus enough info for the frontend to jump straight to it.
+     * Batches into a single query instead of N+1-ing per tag.
+     *
+     * @param  array<int, array{id: int, name: string}>  $refs
+     * @return array<int, array{id: int, name: string, status: string, item_id: ?int, collection_slug: ?string}>
+     */
+    private function enrichRelatedGames(array $refs): array
+    {
+        if (empty($refs)) {
+            return [];
+        }
+
+        $matches = Item::query()
+            ->whereIn('igdb_id', array_column($refs, 'id'))
+            ->with('collection:id,slug,is_wishlist')
+            ->get()
+            ->keyBy('igdb_id');
+
+        return array_map(function (array $ref) use ($matches) {
+            $match = $matches->get($ref['id']);
+
+            return [
+                ...$ref,
+                'status' => match (true) {
+                    $match === null => 'unowned',
+                    (bool) $match->collection?->is_wishlist => 'wishlisted',
+                    default => 'owned',
+                },
+                'item_id' => $match?->id,
+                'collection_slug' => $match?->collection?->slug,
+            ];
+        }, $refs);
     }
 
     public function store(Request $request)
