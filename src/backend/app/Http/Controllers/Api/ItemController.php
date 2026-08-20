@@ -63,7 +63,11 @@ class ItemController extends Controller
                     fn ($metadata) => $metadata->where('franchise_id', $franchiseId),
                 ),
             )
-            ->with(['platform', 'collection'])
+            // Mobile Table View (US-032/033) needs platform/genres/cover_url
+            // and a compact wishlist_detail per row -- loaded here so the
+            // list stays a single request instead of one per row. photos/
+            // metadata are what Item::coverUrl() needs to resolve.
+            ->with(['platform', 'collection', 'genres', 'photos', 'metadata', 'wishlistDetail'])
             ->tap(fn ($query) => $this->applySort($query, $request->string('sort', 'newest')->toString()))
             ->paginate($perPage);
 
