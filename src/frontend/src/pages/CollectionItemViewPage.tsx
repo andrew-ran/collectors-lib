@@ -570,7 +570,7 @@ function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean 
         )}
 
         {meta && (meta.sequels.length > 0 || meta.prequels.length > 0 || meta.remakes.length > 0) && (
-          <RelatedTagRow games={[...meta.prequels, ...meta.sequels, ...meta.remakes]} />
+          <RelatedTagRow prequels={meta.prequels} sequels={meta.sequels} remakes={meta.remakes} />
         )}
 
         {isWishlist && wishlist && <WishlistFields detail={wishlist} />}
@@ -732,14 +732,59 @@ const STATUS_TOOLTIP: Record<RelatedGameRef['status'], string | null> = {
   owned: null,
 }
 
-function RelatedTagRow({ games }: { games: RelatedGameRef[] }) {
+// US-011 follow-up -- with the franchise+date approximation, a long-running
+// franchise can return a long sequels/prequels list and stretch the card
+// (see docs/tz/TECH_DEBT.md). By default only the closest entries on each
+// side are shown, plus anything already owned (so a visitor never misses
+// something they have); "Show more" reveals the rest.
+const NEAREST_RELATED_COUNT = 2
+
+/** Keeps a chronologically-sourced array's relative order, filtering down
+ * to its closest `NEAREST_RELATED_COUNT` entries to the current game (the
+ * last N for prequels, first N for sequels -- both arrays already arrive
+ * sorted oldest-to-newest, see IgdbService::gamesInFranchise()) plus any
+ * entry the visitor already owns, regardless of distance. */
+function pickNearestOrOwned(games: RelatedGameRef[], nearest: RelatedGameRef[]): RelatedGameRef[] {
+  const nearestIds = new Set(nearest.map((g) => g.id))
+
+  return games.filter((g) => nearestIds.has(g.id) || g.status === 'owned')
+}
+
+function RelatedTagRow({
+  prequels,
+  sequels,
+  remakes,
+}: {
+  prequels: RelatedGameRef[]
+  sequels: RelatedGameRef[]
+  remakes: RelatedGameRef[]
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  const compactPrequels = pickNearestOrOwned(prequels, prequels.slice(-NEAREST_RELATED_COUNT))
+  const compactSequels = pickNearestOrOwned(sequels, sequels.slice(0, NEAREST_RELATED_COUNT))
+
+  const compact = [...compactPrequels, ...compactSequels, ...remakes]
+  const full = [...prequels, ...sequels, ...remakes]
+  const visible = expanded ? full : compact
+  const hasMore = !expanded && full.length > compact.length
+
   return (
     <div className="text-sm">
       <span className="text-neutral-500">Related: </span>
-      <span className="inline-flex flex-wrap gap-1.5 align-middle">
-        {games.map((game, i) => (
+      <span className="inline-flex flex-wrap items-center gap-1.5 align-middle">
+        {visible.map((game, i) => (
           <RelatedTag key={`${game.status}-${game.id}-${i}`} game={game} />
         ))}
+        {hasMore && (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="text-xs font-medium text-neutral-500 underline underline-offset-2 hover:text-neutral-800"
+          >
+            Show more
+          </button>
+        )}
       </span>
     </div>
   )
