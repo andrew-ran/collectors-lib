@@ -71,17 +71,61 @@ export interface ItemSummary {
   title: string
 }
 
-/** US-005 -- fetches the full ordered id list for a collection in one call
- * (per_page overridden well above Laravel's default 50), so the position
- * indicator and prev/next navigation don't need a second endpoint. Personal
- * collections are realistically dozens to low hundreds of items -- see
- * ItemController::index(). */
-export function useCollectionItems(collectionId: number | null) {
+/** US-009 -- "My Collection" set; Wishlist's desire-score/price options
+ * aren't implemented yet (need US-020/021's wishlist fields first). */
+export type SortOrder = 'newest' | 'oldest' | 'az' | 'za'
+
+export interface ItemFilters {
+  platformId?: number | null
+  genreId?: number | null
+  franchiseId?: number | null
+  sort?: SortOrder
+}
+
+/** US-005/006/009 -- fetches the full ordered id list for a collection in
+ * one call (per_page overridden well above Laravel's default 50), so the
+ * position indicator and prev/next navigation don't need a second endpoint.
+ * Personal collections are realistically dozens to low hundreds of items --
+ * see ItemController::index(). */
+export function useCollectionItems(collectionId: number | null, filters: ItemFilters = {}) {
+  const { platformId, genreId, franchiseId, sort } = filters
+
   return useQuery({
-    queryKey: ['items', 'collection', collectionId],
+    queryKey: ['items', 'collection', collectionId, platformId, genreId, franchiseId, sort],
     queryFn: async () => {
       const { data } = await apiClient.get<PaginatedResponse<ItemSummary>>('/items', {
-        params: { collection_id: collectionId, per_page: 200 },
+        params: {
+          collection_id: collectionId,
+          per_page: 200,
+          platform_id: platformId ?? undefined,
+          genre_id: genreId ?? undefined,
+          franchise_id: franchiseId ?? undefined,
+          sort,
+        },
+      })
+
+      return data
+    },
+    enabled: collectionId !== null,
+    staleTime: 60 * 1000,
+  })
+}
+
+export interface FilterOptions {
+  platforms: PlatformRef[]
+  genres: GenreRef[]
+  franchises: FranchiseRef[]
+}
+
+/** US-006a -- only values actually present among the current collection's
+ * items; an empty array for a dimension is what drives that filter's
+ * disabled state. */
+export function useFilterOptions(collectionId: number | null) {
+  return useQuery({
+    queryKey: ['items', 'filter-options', collectionId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<FilterOptions>('/items/filter-options', {
+        params: { collection_id: collectionId },
       })
 
       return data

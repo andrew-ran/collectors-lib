@@ -1,31 +1,154 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useCollections, type Collection } from '../api/collections'
-import { useCollectionItems, useItem, type IgdbRef, type ItemDetail } from '../api/items'
+import {
+  useCollectionItems,
+  useFilterOptions,
+  useItem,
+  type FilterOptions,
+  type IgdbRef,
+  type ItemDetail,
+  type SortOrder,
+} from '../api/items'
+import { Dropdown, DropdownItem } from '../components/Dropdown'
 
-/** US-001/001b/002/003/005/010 -- the public homepage: a collection's items
- * shown one at a time, horizontal layout, arrow-button + keyboard
- * navigation, position indicator, collection switcher.
+const SORT_LABELS: Record<SortOrder, string> = {
+  newest: 'Newest added first',
+  oldest: 'Oldest added first',
+  az: 'A → Z',
+  za: 'Z → A',
+}
+
+function toIntOrNull(value: string | null): number | null {
+  if (!value) return null
+  const n = Number(value)
+
+  return Number.isFinite(n) ? n : null
+}
+
+/** US-001/001b/002/003/005/006/006a/007/008/008b/008c/009/010 -- the public
+ * homepage: a collection's items shown one at a time, with a collection
+ * switcher, Platform/Genre/Series filters, sort, arrow navigation, and a
+ * position indicator. Filters/collection/sort are reflected in the URL
+ * (US-008b) so a view can be bookmarked or shared.
  *
- * Deliberately scoped down for this first pass -- explicitly NOT included
- * yet (see docs/tz/BACKLOG.md Phase 2):
- * - US-006/007/008/009 filters, sort, URL state
+ * Deliberately scoped down for this pass -- explicitly NOT included yet
+ * (see docs/tz/BACKLOG.md Phase 2):
  * - US-011 sequel/prequel/remake tag interactivity (in-collection/wishlist
  *   cross-referencing) -- tags render as plain, non-clickable labels
  * - US-012 photo slider/lightbox -- no admin-uploaded photos exist yet,
  *   just the single primary cover image
- * - US-020/021 wishlist fields and the Gifted/Purchased badge -- this view
- *   doesn't yet special-case the Wishlist collection's own fields
+ * - US-020/021 wishlist fields and the Gifted/Purchased badge, and the
+ *   Wishlist-specific desire-score/price sort options that depend on them
  */
 export function CollectionItemViewPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const collectionSlug = searchParams.get('collection')
+  const platformId = toIntOrNull(searchParams.get('platform'))
+  const genreId = toIntOrNull(searchParams.get('genre'))
+  const franchiseId = toIntOrNull(searchParams.get('franchise'))
+  const sort = (searchParams.get('sort') as SortOrder | null) ?? 'newest'
+
   const { data: collections, isLoading: collectionsLoading } = useCollections()
-  const [collectionIdOverride, setCollectionIdOverride] = useState<number | null>(null)
   const collection =
-    collections?.find((c) => c.id === collectionIdOverride) ??
-    collections?.find((c) => c.is_default) ??
-    collections?.[0] ??
+    (collectionSlug && collections?.find((c) => c.slug === collectionSlug)) ||
+    collections?.find((c) => c.is_default) ||
+    collections?.[0] ||
     null
 
-  const { data: itemsPage } = useCollectionItems(collection?.id ?? null)
+  const { data: filterOptions } = useFilterOptions(collection?.id ?? null)
+  const hasActiveFilters = Boolean(platformId || genreId || franchiseId)
+
+  function updateParams(patch: Record<string, string | null>) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === null) next.delete(key)
+        else next.set(key, value)
+      }
+
+      return next
+    })
+  }
+
+  function selectCollection(c: Collection) {
+    updateParams({ collection: c.slug, platform: null, genre: null, franchise: null })
+  }
+
+  function resetFilters() {
+    updateParams({ platform: null, genre: null, franchise: null })
+  }
+
+  if (collectionsLoading) {
+    return <CenteredMessage>Loading...</CenteredMessage>
+  }
+
+  if (!collection) {
+    return <CenteredMessage>No collections yet.</CenteredMessage>
+  }
+
+  return (
+    <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center gap-6 px-4 py-10">
+      <CollectionSwitcher
+        collections={collections ?? []}
+        current={collection}
+        onSelect={selectCollection}
+      />
+
+      <FilterSortBar
+        options={filterOptions}
+        platformId={platformId}
+        genreId={genreId}
+        franchiseId={franchiseId}
+        sort={sort}
+        onPlatformChange={(id) => updateParams({ platform: id })}
+        onGenreChange={(id) => updateParams({ genre: id })}
+        onFranchiseChange={(id) => updateParams({ franchise: id })}
+        onSortChange={(value) => updateParams({ sort: value === 'newest' ? null : value })}
+      />
+
+      {/* Remounts (resetting the browser's local position state) whenever
+          collection/filters/sort change -- covers both clicks here and
+          direct URL/back-button navigation, without an effect+setState. */}
+      <ItemBrowser
+        key={`${collection.id}-${platformId ?? ''}-${genreId ?? ''}-${franchiseId ?? ''}-${sort}`}
+        collectionId={collection.id}
+        platformId={platformId}
+        genreId={genreId}
+        franchiseId={franchiseId}
+        sort={sort}
+        hasActiveFilters={hasActiveFilters}
+        onResetFilters={resetFilters}
+      />
+    </div>
+  )
+}
+
+function ItemBrowser({
+  collectionId,
+  platformId,
+  genreId,
+  franchiseId,
+  sort,
+  hasActiveFilters,
+  onResetFilters,
+}: {
+  collectionId: number
+  platformId: number | null
+  genreId: number | null
+  franchiseId: number | null
+  sort: SortOrder
+  hasActiveFilters: boolean
+  onResetFilters: () => void
+}) {
+  const { data: itemsPage } = useCollectionItems(collectionId, {
+    platformId,
+    genreId,
+    franchiseId,
+    sort,
+  })
   const items = itemsPage?.data ?? []
   const total = itemsPage?.total ?? 0
 
@@ -41,14 +164,6 @@ export function CollectionItemViewPage() {
     [items.length],
   )
 
-  // US-007's "resets to item 1" is written for filters, but the same logic
-  // applies to switching collections -- position 1 in the new collection,
-  // not whatever index happened to be selected in the old one.
-  function selectCollection(id: number) {
-    setCollectionIdOverride(id)
-    setIndex(0)
-  }
-
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'ArrowLeft') goPrev()
@@ -60,36 +175,15 @@ export function CollectionItemViewPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [goPrev, goNext])
 
-  if (collectionsLoading) {
-    return <CenteredMessage>Loading...</CenteredMessage>
-  }
-
-  if (!collection) {
-    return <CenteredMessage>No collections yet.</CenteredMessage>
-  }
-
   if (itemsPage && total === 0) {
-    return (
-      <div className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-2 px-4 text-center">
-        <CollectionSwitcher
-          collections={collections ?? []}
-          current={collection}
-          onSelect={selectCollection}
-        />
-        <p className="text-neutral-500">No items yet.</p>
-      </div>
-    )
+    return <EmptyState hasActiveFilters={hasActiveFilters} onResetFilters={onResetFilters} />
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center gap-6 px-4 py-10">
-      <CollectionSwitcher
-        collections={collections ?? []}
-        current={collection}
-        onSelect={selectCollection}
-      />
+    <>
+      <p className="text-sm text-neutral-500">{total} item(s)</p>
 
-      <div className="flex w-full items-center justify-center gap-3 sm:gap-6">
+      <div className="flex w-full flex-1 items-center justify-center gap-3 sm:gap-6">
         <NavButton direction="prev" onClick={goPrev} disabled={clampedIndex === 0} />
 
         {item ? <ItemCard item={item} /> : <ItemCardSkeleton />}
@@ -104,7 +198,7 @@ export function CollectionItemViewPage() {
       <p className="text-sm text-neutral-500">
         Item {total === 0 ? 0 : clampedIndex + 1} of {total}
       </p>
-    </div>
+    </>
   )
 }
 
@@ -116,9 +210,35 @@ function CenteredMessage({ children }: { children: ReactNode }) {
   )
 }
 
+function EmptyState({
+  hasActiveFilters,
+  onResetFilters,
+}: {
+  hasActiveFilters: boolean
+  onResetFilters: () => void
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+      {hasActiveFilters ? (
+        <>
+          <p className="text-neutral-500">No items match these filters.</p>
+          <button
+            type="button"
+            onClick={onResetFilters}
+            className="text-sm font-medium text-neutral-900 underline underline-offset-2"
+          >
+            Reset filters
+          </button>
+        </>
+      ) : (
+        <p className="text-neutral-500">No items yet.</p>
+      )}
+    </div>
+  )
+}
+
 /** US-001b -- button next to the collection name opens a dropdown of every
- * collection, same width as the name+button element, up to 4 rows visible
- * then scrollable (US-006a's height rule). */
+ * collection. */
 function CollectionSwitcher({
   collections,
   current,
@@ -126,77 +246,176 @@ function CollectionSwitcher({
 }: {
   collections: Collection[]
   current: Collection
-  onSelect: (id: number) => void
+  onSelect: (collection: Collection) => void
 }) {
-  const [open, setOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-
-    function onPointerDown(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
-    }
-
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
-
   return (
-    <div ref={containerRef} className="relative inline-block">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex items-center gap-1.5 rounded-full border border-transparent px-2 py-1 text-xl font-semibold text-neutral-900 transition hover:border-neutral-200 hover:bg-neutral-50"
-      >
-        {current.name}
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          className={`h-4 w-4 text-neutral-400 transition-transform ${open ? 'rotate-180' : ''}`}
-        >
-          <path
-            d="M6 9l6 6 6-6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
-      {open && (
-        <ul className="absolute top-full left-0 z-10 mt-1 max-h-40 w-full min-w-full overflow-y-auto rounded-lg border border-neutral-200 bg-white py-1 shadow-md">
+    <Dropdown
+      trigger={current.name}
+      triggerClassName="flex items-center gap-1.5 rounded-full border border-transparent px-2 py-1 text-xl font-semibold text-neutral-900 transition hover:border-neutral-200 hover:bg-neutral-50"
+    >
+      {(close) => (
+        <ul>
           {collections.map((c) => (
             <li key={c.id}>
-              <button
-                type="button"
+              <DropdownItem
+                active={c.id === current.id}
                 onClick={() => {
-                  onSelect(c.id)
-                  setOpen(false)
+                  onSelect(c)
+                  close()
                 }}
-                className={`block w-full px-3 py-2 text-left text-sm whitespace-nowrap hover:bg-neutral-50 ${
-                  c.id === current.id ? 'font-medium text-neutral-900' : 'text-neutral-600'
-                }`}
               >
                 {c.name}
-              </button>
+              </DropdownItem>
             </li>
           ))}
         </ul>
       )}
+    </Dropdown>
+  )
+}
+
+/** US-006/006a/009 -- Platform/Genre/Series filter tags + the sort
+ * dropdown. Each filter is grayed out (US-006a's disabled state) when the
+ * current collection has zero items with any value for that dimension. */
+function FilterSortBar({
+  options,
+  platformId,
+  genreId,
+  franchiseId,
+  sort,
+  onPlatformChange,
+  onGenreChange,
+  onFranchiseChange,
+  onSortChange,
+}: {
+  options: FilterOptions | undefined
+  platformId: number | null
+  genreId: number | null
+  franchiseId: number | null
+  sort: SortOrder
+  onPlatformChange: (id: string | null) => void
+  onGenreChange: (id: string | null) => void
+  onFranchiseChange: (id: string | null) => void
+  onSortChange: (value: SortOrder) => void
+}) {
+  const platform = options?.platforms.find((p) => p.id === platformId)
+  const genre = options?.genres.find((g) => g.id === genreId)
+  const franchise = options?.franchises.find((f) => f.id === franchiseId)
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      <Dropdown trigger={platform?.name ?? 'Platform'} disabled={!options?.platforms.length}>
+        {(close) => (
+          <ul>
+            <li>
+              <DropdownItem
+                active={!platformId}
+                onClick={() => {
+                  onPlatformChange(null)
+                  close()
+                }}
+              >
+                All platforms
+              </DropdownItem>
+            </li>
+            {options?.platforms.map((p) => (
+              <li key={p.id}>
+                <DropdownItem
+                  active={p.id === platformId}
+                  onClick={() => {
+                    onPlatformChange(String(p.id))
+                    close()
+                  }}
+                >
+                  {p.name}
+                </DropdownItem>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Dropdown>
+
+      <Dropdown trigger={genre?.name ?? 'Genre'} disabled={!options?.genres.length}>
+        {(close) => (
+          <ul>
+            <li>
+              <DropdownItem
+                active={!genreId}
+                onClick={() => {
+                  onGenreChange(null)
+                  close()
+                }}
+              >
+                All genres
+              </DropdownItem>
+            </li>
+            {options?.genres.map((g) => (
+              <li key={g.id}>
+                <DropdownItem
+                  active={g.id === genreId}
+                  onClick={() => {
+                    onGenreChange(String(g.id))
+                    close()
+                  }}
+                >
+                  {g.name}
+                </DropdownItem>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Dropdown>
+
+      <Dropdown trigger={franchise?.name ?? 'Series'} disabled={!options?.franchises.length}>
+        {(close) => (
+          <ul>
+            <li>
+              <DropdownItem
+                active={!franchiseId}
+                onClick={() => {
+                  onFranchiseChange(null)
+                  close()
+                }}
+              >
+                All series
+              </DropdownItem>
+            </li>
+            {options?.franchises.map((f) => (
+              <li key={f.id}>
+                <DropdownItem
+                  active={f.id === franchiseId}
+                  onClick={() => {
+                    onFranchiseChange(String(f.id))
+                    close()
+                  }}
+                >
+                  {f.name}
+                </DropdownItem>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Dropdown>
+
+      <Dropdown trigger={SORT_LABELS[sort]}>
+        {(close) => (
+          <ul>
+            {(Object.keys(SORT_LABELS) as SortOrder[]).map((value) => (
+              <li key={value}>
+                <DropdownItem
+                  active={value === sort}
+                  onClick={() => {
+                    onSortChange(value)
+                    close()
+                  }}
+                >
+                  {SORT_LABELS[value]}
+                </DropdownItem>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Dropdown>
     </div>
   )
 }
