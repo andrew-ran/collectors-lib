@@ -17,6 +17,9 @@ Route::middleware('throttle:api')->group(function () {
     Route::middleware('throttle:login')->post('/auth/login', [AuthController::class, 'login']);
 
     // Public browsing -- no auth required, see ARCHITECTURE.md Authentication.
+    // filter-options must stay above {item} or Laravel tries to bind it as
+    // an item id (US-006a).
+    Route::get('/items/filter-options', [ItemController::class, 'filterOptions']);
     Route::get('/items', [ItemController::class, 'index']);
     Route::get('/items/{item}', [ItemController::class, 'show']);
     Route::get('/collections', [CollectionController::class, 'index']);

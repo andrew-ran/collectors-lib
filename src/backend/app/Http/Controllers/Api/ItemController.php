@@ -7,7 +7,11 @@ use App\Enums\ItemType;
 use App\Enums\ScrapeStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\ScrapeItemMetadataJob;
+use App\Models\Franchise;
+use App\Models\Genre;
 use App\Models\Item;
+use App\Models\Platform;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -39,11 +43,92 @@ class ItemController extends Controller
                 $request->integer('collection_id'),
                 fn ($query, $collectionId) => $query->where('collection_id', $collectionId),
             )
+            // US-006 -- Platform/Genre/Series filters. Single-select per
+            // dimension (the filter bar is tag buttons, not checkboxes).
+            ->when(
+                $request->integer('platform_id'),
+                fn ($query, $platformId) => $query->where('platform_id', $platformId),
+            )
+            ->when(
+                $request->integer('genre_id'),
+                fn ($query, $genreId) => $query->whereHas(
+                    'genres',
+                    fn ($genres) => $genres->where('genres.id', $genreId),
+                ),
+            )
+            ->when(
+                $request->integer('franchise_id'),
+                fn ($query, $franchiseId) => $query->whereHas(
+                    'metadata',
+                    fn ($metadata) => $metadata->where('franchise_id', $franchiseId),
+                ),
+            )
             ->with(['platform', 'collection'])
-            ->latest()
+            ->tap(fn ($query) => $this->applySort($query, $request->string('sort', 'newest')->toString()))
             ->paginate($perPage);
 
         return response()->json($items);
+    }
+
+    /**
+     * US-006a -- each filter dropdown only lists values actually present
+     * among the current collection's items, not every value that exists
+     * globally. Also drives the "disabled state" (empty array = grayed out).
+     */
+    public function filterOptions(Request $request)
+    {
+        $collectionId = $request->integer('collection_id');
+        $scopeToCollection = fn ($query) => $query->when(
+            $collectionId,
+            fn ($q, $id) => $q->where('collection_id', $id),
+        );
+
+        $platforms = Platform::query()
+            ->whereHas('items', $scopeToCollection)
+            ->orderBy('name')
+            ->get(['id', 'name', 'abbreviation']);
+
+        $genres = Genre::query()
+            ->whereHas('items', $scopeToCollection)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $franchises = Franchise::query()
+            ->whereHas(
+                'itemMetadata',
+                fn ($metadata) => $metadata->whereHas('item', $scopeToCollection),
+            )
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'platforms' => $platforms,
+            'genres' => $genres,
+            'franchises' => $franchises,
+        ]);
+    }
+
+    /**
+     * US-009. "Newest/Oldest added first" sorts by acquired_date (when the
+     * collector got the physical item), not created_at (when the DB row was
+     * created) -- the adjacent spec rule about items with no date sorting
+     * alphabetically after dated ones only makes sense against a nullable
+     * date, and acquired_date is the nullable one (created_at never is).
+     * Wishlist's desire-score/price sort options aren't implemented yet --
+     * see docs/tz/BACKLOG.md, they need US-020/021's wishlist fields first.
+     */
+    private function applySort(Builder $query, string $sort): void
+    {
+        match ($sort) {
+            'oldest' => $query->orderByRaw('acquired_date IS NULL')
+                ->orderBy('acquired_date')
+                ->orderBy('title'),
+            'az' => $query->orderBy('title'),
+            'za' => $query->orderByDesc('title'),
+            default => $query->orderByRaw('acquired_date IS NULL')
+                ->orderByDesc('acquired_date')
+                ->orderBy('title'),
+        };
     }
 
     public function show(Item $item)
