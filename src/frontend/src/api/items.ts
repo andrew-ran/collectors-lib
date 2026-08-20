@@ -55,3 +55,102 @@ export function useItemStatus(itemId: number | null) {
     },
   })
 }
+
+// --- Public Item View (US-001, 002, 003, 005, 010) -------------------------
+
+interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  per_page: number
+  current_page: number
+  last_page: number
+}
+
+export interface ItemSummary {
+  id: number
+  title: string
+}
+
+/** US-005 -- fetches the full ordered id list for a collection in one call
+ * (per_page overridden well above Laravel's default 50), so the position
+ * indicator and prev/next navigation don't need a second endpoint. Personal
+ * collections are realistically dozens to low hundreds of items -- see
+ * ItemController::index(). */
+export function useCollectionItems(collectionId: number | null) {
+  return useQuery({
+    queryKey: ['items', 'collection', collectionId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<PaginatedResponse<ItemSummary>>('/items', {
+        params: { collection_id: collectionId, per_page: 200 },
+      })
+
+      return data
+    },
+    enabled: collectionId !== null,
+    staleTime: 60 * 1000,
+  })
+}
+
+export interface PlatformRef {
+  id: number
+  name: string
+  abbreviation: string | null
+}
+
+export interface GenreRef {
+  id: number
+  name: string
+}
+
+export interface FranchiseRef {
+  id: number
+  name: string
+}
+
+/** Shape of the sequels/prequels/remakes/other_platforms arrays stored in
+ * item_metadata -- raw IGDB references (IGDB ids, not local ones). US-011's
+ * in-collection/in-wishlist cross-referencing for these tags is deferred;
+ * for now they render as plain (non-clickable) tags. */
+export interface IgdbRef {
+  id: number
+  name: string
+  abbreviation?: string
+}
+
+export interface ItemMetadataDetail {
+  description: string | null
+  release_year: string | null
+  franchise: FranchiseRef | null
+  developer: string | null
+  publisher: string | null
+  other_platforms: IgdbRef[]
+  sequels: IgdbRef[]
+  prequels: IgdbRef[]
+  remakes: IgdbRef[]
+}
+
+export interface ItemDetail {
+  id: number
+  title: string
+  subtitle: string | null
+  type: string
+  cover_url: string | null
+  scrape_status: ScrapeStatus
+  platform: PlatformRef | null
+  genres: GenreRef[]
+  metadata: ItemMetadataDetail | null
+}
+
+/** US-010 -- full detail for the currently displayed card. */
+export function useItem(itemId: number | null) {
+  return useQuery({
+    queryKey: ['items', itemId, 'detail'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<ItemDetail>(`/items/${itemId}`)
+
+      return data
+    },
+    enabled: itemId !== null,
+    staleTime: 60 * 1000,
+  })
+}

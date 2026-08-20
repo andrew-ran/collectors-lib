@@ -26,6 +26,14 @@ class ItemController extends Controller
 {
     public function index(Request $request)
     {
+        // US-005's position indicator and Item View's prev/next navigation
+        // need the full ordered id list for a collection in one request --
+        // personal collections are realistically dozens to low hundreds of
+        // items, so a per_page override (capped, not unbounded) is simpler
+        // than a second "ids only" endpoint. Defaults to 50 for callers that
+        // do want normal pagination.
+        $perPage = min($request->integer('per_page', 50), 200);
+
         $items = Item::query()
             ->when(
                 $request->integer('collection_id'),
@@ -33,7 +41,7 @@ class ItemController extends Controller
             )
             ->with(['platform', 'collection'])
             ->latest()
-            ->paginate(50);
+            ->paginate($perPage);
 
         return response()->json($items);
     }
@@ -41,7 +49,14 @@ class ItemController extends Controller
     public function show(Item $item)
     {
         return response()->json(
-            $item->load(['platform', 'collection', 'metadata', 'photos', 'genres', 'wishlistDetail']),
+            $item->load([
+                'platform',
+                'collection',
+                'metadata.franchise',
+                'photos',
+                'genres',
+                'wishlistDetail',
+            ]),
         );
     }
 
