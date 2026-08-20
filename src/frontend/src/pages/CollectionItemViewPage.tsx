@@ -10,6 +10,7 @@ import {
   type IgdbRef,
   type ItemDetail,
   type Priority,
+  type RelatedGameRef,
   type SortOrder,
   type WishlistDetailRef,
 } from '../api/items'
@@ -40,10 +41,14 @@ function toIntOrNull(value: string | null): number | null {
  * Wishlist cards, plus the Gifted/Purchased acquisition badge once an item
  * has left the Wishlist for a regular collection.
  *
+ * And US-011: Related (sequel/prequel/remake) tags show a hover tooltip and
+ * are clickable when the target is owned/wishlisted, jumping to that game's
+ * own card via the `item` URL param. Note: `sequels`/`prequels` themselves
+ * are a franchise+release-date approximation, not a true IGDB relation --
+ * see docs/tz/TECH_DEBT.md and the CHANGELOG.
+ *
  * Deliberately scoped down for this pass -- explicitly NOT included yet
  * (see docs/tz/BACKLOG.md Phase 2):
- * - US-011 sequel/prequel/remake tag interactivity (in-collection/wishlist
- *   cross-referencing) -- tags render as plain, non-clickable labels
  * - US-012 photo slider/lightbox -- no admin-uploaded photos exist yet,
  *   just the single primary cover image
  * - US-170/171 currency selector/conversion -- wishlist prices render as
@@ -61,6 +66,9 @@ export function CollectionItemViewPage() {
   const genreId = toIntOrNull(searchParams.get('genre'))
   const franchiseId = toIntOrNull(searchParams.get('franchise'))
   const sort = (searchParams.get('sort') as SortOrder | null) ?? 'newest'
+  // US-011 -- set when a Related tag was clicked; ItemBrowser resolves it
+  // to a starting position once its item list has loaded.
+  const itemIdParam = toIntOrNull(searchParams.get('item'))
 
   const { data: collections, isLoading: collectionsLoading } = useCollections()
   const collection =
@@ -86,7 +94,7 @@ export function CollectionItemViewPage() {
   }
 
   function selectCollection(c: Collection) {
-    updateParams({ collection: c.slug, platform: null, genre: null, franchise: null })
+    updateParams({ collection: c.slug, platform: null, genre: null, franchise: null, item: null })
   }
 
   function resetFilters() {
@@ -125,9 +133,10 @@ export function CollectionItemViewPage() {
           collection/filters/sort change -- covers both clicks here and
           direct URL/back-button navigation, without an effect+setState. */}
       <ItemBrowser
-        key={`${collection.id}-${platformId ?? ''}-${genreId ?? ''}-${franchiseId ?? ''}-${sort}`}
+        key={`${collection.id}-${platformId ?? ''}-${genreId ?? ''}-${franchiseId ?? ''}-${sort}-${itemIdParam ?? ''}`}
         collectionId={collection.id}
         isWishlist={collection.is_wishlist}
+        initialItemId={itemIdParam}
         platformId={platformId}
         genreId={genreId}
         franchiseId={franchiseId}
@@ -142,6 +151,7 @@ export function CollectionItemViewPage() {
 function ItemBrowser({
   collectionId,
   isWishlist,
+  initialItemId,
   platformId,
   genreId,
   franchiseId,
@@ -151,6 +161,7 @@ function ItemBrowser({
 }: {
   collectionId: number
   isWishlist: boolean
+  initialItemId: number | null
   platformId: number | null
   genreId: number | null
   franchiseId: number | null
@@ -168,16 +179,27 @@ function ItemBrowser({
   const total = itemsPage?.total ?? 0
 
   const [index, setIndex] = useState(0)
-  const clampedIndex = Math.min(index, Math.max(items.length - 1, 0))
+  // US-011 -- once a Related tag jump has been consumed (by any manual
+  // arrow nav), we stop overriding index with the jump target. Starts
+  // already-consumed when there's nothing to jump to. Purely derived from
+  // `items` each render (no effect needed) -- once the async item list
+  // arrives, the target position just falls out of this computation.
+  const [hasJumped, setHasJumped] = useState(initialItemId === null)
+  const targetIndex = hasJumped ? -1 : items.findIndex((i) => i.id === initialItemId)
+  const effectiveIndex = targetIndex >= 0 ? targetIndex : index
+  const clampedIndex = Math.min(effectiveIndex, Math.max(items.length - 1, 0))
   const currentId = items[clampedIndex]?.id ?? null
 
   const { data: item } = useItem(currentId)
 
-  const goPrev = useCallback(() => setIndex((i) => Math.max(i - 1, 0)), [])
-  const goNext = useCallback(
-    () => setIndex((i) => Math.min(i + 1, items.length - 1)),
-    [items.length],
-  )
+  const goPrev = useCallback(() => {
+    setHasJumped(true)
+    setIndex(Math.max(effectiveIndex - 1, 0))
+  }, [effectiveIndex])
+  const goNext = useCallback(() => {
+    setHasJumped(true)
+    setIndex(Math.min(effectiveIndex + 1, items.length - 1))
+  }, [effectiveIndex, items.length])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -548,10 +570,7 @@ function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean 
         )}
 
         {meta && (meta.sequels.length > 0 || meta.prequels.length > 0 || meta.remakes.length > 0) && (
-          <TagRow
-            label="Related"
-            tags={[...meta.prequels, ...meta.sequels, ...meta.remakes]}
-          />
+          <RelatedTagRow games={[...meta.prequels, ...meta.sequels, ...meta.remakes]} />
         )}
 
         {isWishlist && wishlist && <WishlistFields detail={wishlist} />}
@@ -703,6 +722,83 @@ function TagRow({ label, tags }: { label: string; tags: IgdbRef[] }) {
         {tags.map((tag) => tag.abbreviation ?? tag.name).join(', ')}
       </span>
     </div>
+  )
+}
+
+const STATUS_TOOLTIP: Record<RelatedGameRef['status'], string | null> = {
+  unowned: 'не в коллекции',
+  wishlisted: 'Wishlisted',
+  // The checkmark itself communicates "owned" (US-011); no bubble text.
+  owned: null,
+}
+
+function RelatedTagRow({ games }: { games: RelatedGameRef[] }) {
+  return (
+    <div className="text-sm">
+      <span className="text-neutral-500">Related: </span>
+      <span className="inline-flex flex-wrap gap-1.5 align-middle">
+        {games.map((game, i) => (
+          <RelatedTag key={`${game.status}-${game.id}-${i}`} game={game} />
+        ))}
+      </span>
+    </div>
+  )
+}
+
+/** US-011 -- hovering shows a comic-book-style speech-bubble tooltip; the
+ * exact text/behavior depends on whether the related game is owned,
+ * wishlisted, or neither. Owned/wishlisted tags are clickable and jump to
+ * that game's own card (in its own collection) via the `item` URL param
+ * ItemBrowser resolves. `sequels`/`prequels` are a franchise+release-date
+ * approximation, not a true IGDB relation -- see docs/tz/TECH_DEBT.md. */
+function RelatedTag({ game }: { game: RelatedGameRef }) {
+  const [, setSearchParams] = useSearchParams()
+  const [hovered, setHovered] = useState(false)
+
+  const clickable = game.status !== 'unowned' && game.item_id !== null && game.collection_slug !== null
+  const tooltip = STATUS_TOOLTIP[game.status]
+
+  function handleClick() {
+    if (!clickable || !game.collection_slug || game.item_id === null) return
+
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('collection', game.collection_slug as string)
+      next.set('item', String(game.item_id))
+      next.delete('platform')
+      next.delete('genre')
+      next.delete('franchise')
+
+      return next
+    })
+  }
+
+  return (
+    <span className="relative inline-block">
+      {hovered && tooltip && (
+        <span className="absolute bottom-full left-0 z-10 mb-1.5 rounded-xl rounded-bl-none border border-neutral-200 bg-white px-2.5 py-1 text-xs whitespace-nowrap text-neutral-700 shadow-md">
+          {tooltip}
+        </span>
+      )}
+
+      <button
+        type="button"
+        onClick={handleClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        disabled={!clickable}
+        className={`inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs text-neutral-600 transition ${
+          clickable ? 'cursor-pointer hover:bg-neutral-200' : 'cursor-default'
+        }`}
+      >
+        {game.name}
+        {game.status === 'owned' && (
+          <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-green-500 text-[8px] leading-none text-white">
+            ✓
+          </span>
+        )}
+      </button>
+    </span>
   )
 }
 

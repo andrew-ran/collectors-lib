@@ -151,14 +151,25 @@ export interface FranchiseRef {
   name: string
 }
 
-/** Shape of the sequels/prequels/remakes/other_platforms arrays stored in
- * item_metadata -- raw IGDB references (IGDB ids, not local ones). US-011's
- * in-collection/in-wishlist cross-referencing for these tags is deferred;
- * for now they render as plain (non-clickable) tags. */
+/** Shape of the other_platforms array stored in item_metadata -- raw IGDB
+ * references (IGDB ids, not local ones), rendered as plain non-clickable
+ * tags (US-010). */
 export interface IgdbRef {
   id: number
   name: string
   abbreviation?: string
+}
+
+/** US-011 -- sequels/prequels/remakes are the same raw IGDB reference, plus
+ * server-derived ownership status so the tag can show the right tooltip/
+ * checkmark and jump straight to the local item on click. `sequels`/
+ * `prequels` are themselves an approximation (same-franchise games split by
+ * release date, not a real IGDB sequel/prequel relation) -- see
+ * docs/tz/TECH_DEBT.md and the CHANGELOG. */
+export interface RelatedGameRef extends IgdbRef {
+  status: 'unowned' | 'wishlisted' | 'owned'
+  item_id: number | null
+  collection_slug: string | null
 }
 
 export interface ItemMetadataDetail {
@@ -168,9 +179,12 @@ export interface ItemMetadataDetail {
   developer: string | null
   publisher: string | null
   other_platforms: IgdbRef[]
-  sequels: IgdbRef[]
-  prequels: IgdbRef[]
-  remakes: IgdbRef[]
+  sequels: RelatedGameRef[]
+  prequels: RelatedGameRef[]
+  remakes: RelatedGameRef[]
+  /** Captured from IGDB but not surfaced in the UI yet -- see US-011 tech
+   * debt note, may be shown alongside remakes in a future pass. */
+  remasters: IgdbRef[]
 }
 
 /** US-021/022 -- only present when the item has a gifter row set for it. */
