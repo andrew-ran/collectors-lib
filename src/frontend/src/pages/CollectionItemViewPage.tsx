@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useCollections, type Collection } from '../api/collections'
 import {
@@ -9,12 +9,26 @@ import {
   type FilterOptions,
   type IgdbRef,
   type ItemDetail,
+  type ItemSummary,
   type Priority,
   type RelatedGameRef,
   type SortOrder,
   type WishlistDetailRef,
 } from '../api/items'
 import { Dropdown, DropdownItem } from '../components/Dropdown'
+import { useIsMobile } from '../hooks/useIsMobile'
+
+/** US-030/031 -- mobile default is Table View; Item View is the desktop-
+ * style stacked full-detail cards. Not URL-reflected (unlike collection/
+ * filters/sort) -- the spec only calls out those as bookmarkable (US-008b),
+ * and a view-mode preference is a lighter, more session-local choice. */
+type MobileViewMode = 'table' | 'item'
+
+/** US-034/011 -- id of the sticky mobile sort/filter bar, read by the
+ * scroll-to-item logic to offset for its actual rendered height (it can
+ * wrap to 2 lines depending on how many filters are active/available, so a
+ * fixed guessed offset isn't reliable). */
+const STICKY_BAR_ID = 'sort-filter-bar'
 
 const SORT_LABELS: Record<SortOrder, string> = {
   newest: 'Newest added first',
@@ -47,6 +61,12 @@ function toIntOrNull(value: string | null): number | null {
  * are a franchise+release-date approximation, not a true IGDB relation --
  * see docs/tz/TECH_DEBT.md and the CHANGELOG.
  *
+ * And US-030/031/032/033/034/035/036/037: below 768px, this switches to a
+ * mobile Table View (default) or Item View (full-detail cards stacked
+ * vertically), toggled from the sort/filter bar, which becomes sticky on
+ * scroll on mobile. Table rows open a popup with the same fields/order as
+ * Item View on tap. A floating scroll-to-top button appears once scrolled.
+ *
  * Deliberately scoped down for this pass -- explicitly NOT included yet
  * (see docs/tz/BACKLOG.md Phase 2):
  * - US-012 photo slider/lightbox -- no admin-uploaded photos exist yet,
@@ -54,12 +74,22 @@ function toIntOrNull(value: string | null): number | null {
  * - US-170/171 currency selector/conversion -- wishlist prices render as
  *   plain numbers, no currency symbol or conversion yet
  * - Wishlist's Most/Least-wanted and Price sort options (US-009) -- the
- *   fields exist now, but the sort UI itself isn't wired up in this pass
+ *   fields exist now, but the sort UI itself isn't wired up in this pass,
+ *   so US-032's table columns for those two sorts aren't reachable yet
+ *   (see docs/tz/TECH_DEBT.md)
  * - Real test data for the acquisition badge needs US-151 (mark received)
  *   to exist, or a manually seeded wishlist_details row + collection move
+ * - Mobile Item View fetches each stacked card's full detail individually
+ *   (same useItem() hook desktop uses) -- fine at "dozens to low hundreds"
+ *   of items, but not lazy/virtualized -- see docs/tz/TECH_DEBT.md
  */
 export function CollectionItemViewPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const isMobile = useIsMobile()
+  const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('table')
+  // US-035 -- carries the row's position too, so the popup can show "Item N"
+  // (US-036) without re-deriving it from the list.
+  const [popupItem, setPopupItem] = useState<{ id: number; number: number } | null>(null)
 
   const collectionSlug = searchParams.get('collection')
   const platformId = toIntOrNull(searchParams.get('platform'))
@@ -111,39 +141,86 @@ export function CollectionItemViewPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center gap-6 px-4 py-10">
-      <CollectionSwitcher
-        collections={collections ?? []}
-        current={collection}
-        onSelect={selectCollection}
-      />
+      {/* US-034 -- collection name/switcher is never sticky, on mobile or
+          desktop. Wrapped in its own elevated stacking context (z-30) so
+          its dropdown always paints above the sticky sort/filter bar (z-20)
+          below it, regardless of DOM order -- otherwise the sticky bar's
+          own stacking context would sit on top of it once scrolled. */}
+      <div className="relative z-30">
+        <CollectionSwitcher
+          collections={collections ?? []}
+          current={collection}
+          onSelect={selectCollection}
+        />
+      </div>
 
-      <FilterSortBar
-        options={filterOptions}
-        platformId={platformId}
-        genreId={genreId}
-        franchiseId={franchiseId}
-        sort={sort}
-        onPlatformChange={(id) => updateParams({ platform: id })}
-        onGenreChange={(id) => updateParams({ genre: id })}
-        onFranchiseChange={(id) => updateParams({ franchise: id })}
-        onSortChange={(value) => updateParams({ sort: value === 'newest' ? null : value })}
-      />
+      {/* US-034 -- only the mobile sort/filter bar becomes sticky once
+          scrolled; desktop's stays in normal flow. id is read by the
+          US-011 mobile scroll-to-item logic below, to offset for its
+          actual (variable, can wrap to 2 lines) rendered height. */}
+      <div
+        id={STICKY_BAR_ID}
+        className={isMobile ? 'sticky top-0 z-20 w-full bg-white/95 py-2 backdrop-blur' : 'w-full'}
+      >
+        <FilterSortBar
+          options={filterOptions}
+          platformId={platformId}
+          genreId={genreId}
+          franchiseId={franchiseId}
+          sort={sort}
+          onPlatformChange={(id) => updateParams({ platform: id })}
+          onGenreChange={(id) => updateParams({ genre: id })}
+          onFranchiseChange={(id) => updateParams({ franchise: id })}
+          onSortChange={(value) => updateParams({ sort: value === 'newest' ? null : value })}
+          mobileViewMode={isMobile ? mobileViewMode : null}
+          onMobileViewModeChange={setMobileViewMode}
+        />
+      </div>
 
-      {/* Remounts (resetting the browser's local position state) whenever
-          collection/filters/sort change -- covers both clicks here and
-          direct URL/back-button navigation, without an effect+setState. */}
-      <ItemBrowser
-        key={`${collection.id}-${platformId ?? ''}-${genreId ?? ''}-${franchiseId ?? ''}-${sort}-${itemIdParam ?? ''}`}
-        collectionId={collection.id}
-        isWishlist={collection.is_wishlist}
-        initialItemId={itemIdParam}
-        platformId={platformId}
-        genreId={genreId}
-        franchiseId={franchiseId}
-        sort={sort}
-        hasActiveFilters={hasActiveFilters}
-        onResetFilters={resetFilters}
-      />
+      {isMobile ? (
+        <MobileCollectionView
+          collectionId={collection.id}
+          isWishlist={collection.is_wishlist}
+          viewMode={mobileViewMode}
+          initialItemId={itemIdParam}
+          platformId={platformId}
+          genreId={genreId}
+          franchiseId={franchiseId}
+          sort={sort}
+          hasActiveFilters={hasActiveFilters}
+          onResetFilters={resetFilters}
+          onSelectItem={(id, number) => setPopupItem({ id, number })}
+        />
+      ) : (
+        // Remounts (resetting the browser's local position state) whenever
+        // collection/filters/sort change -- covers both clicks here and
+        // direct URL/back-button navigation, without an effect+setState.
+        <ItemBrowser
+          key={`${collection.id}-${platformId ?? ''}-${genreId ?? ''}-${franchiseId ?? ''}-${sort}-${itemIdParam ?? ''}`}
+          collectionId={collection.id}
+          isWishlist={collection.is_wishlist}
+          initialItemId={itemIdParam}
+          platformId={platformId}
+          genreId={genreId}
+          franchiseId={franchiseId}
+          sort={sort}
+          hasActiveFilters={hasActiveFilters}
+          onResetFilters={resetFilters}
+        />
+      )}
+
+      {/* US-035 -- Table View row tap opens the same fields/order as Item
+          View, in a popup. */}
+      {popupItem !== null && (
+        <ItemDetailPopup
+          itemId={popupItem.id}
+          itemNumber={popupItem.number}
+          isWishlist={collection.is_wishlist}
+          onClose={() => setPopupItem(null)}
+        />
+      )}
+
+      {isMobile && <ScrollToTopButton />}
     </div>
   )
 }
@@ -324,6 +401,8 @@ function FilterSortBar({
   onGenreChange,
   onFranchiseChange,
   onSortChange,
+  mobileViewMode,
+  onMobileViewModeChange,
 }: {
   options: FilterOptions | undefined
   platformId: number | null
@@ -334,6 +413,10 @@ function FilterSortBar({
   onGenreChange: (id: string | null) => void
   onFranchiseChange: (id: string | null) => void
   onSortChange: (value: SortOrder) => void
+  /** US-031/034 -- null on desktop, which has no Table View and therefore
+   * no toggle at all in v1. */
+  mobileViewMode: MobileViewMode | null
+  onMobileViewModeChange: (mode: MobileViewMode) => void
 }) {
   const platform = options?.platforms.find((p) => p.id === platformId)
   const genre = options?.genres.find((g) => g.id === genreId)
@@ -453,6 +536,36 @@ function FilterSortBar({
           </ul>
         )}
       </Dropdown>
+
+      {mobileViewMode !== null && (
+        <MobileViewToggle mode={mobileViewMode} onChange={onMobileViewModeChange} />
+      )}
+    </div>
+  )
+}
+
+/** US-031 -- Table View (default) / Item View toggle, mobile only. */
+function MobileViewToggle({
+  mode,
+  onChange,
+}: {
+  mode: MobileViewMode
+  onChange: (mode: MobileViewMode) => void
+}) {
+  return (
+    <div className="inline-flex rounded-full border border-neutral-200 bg-white p-0.5 text-sm">
+      {(['table', 'item'] as const).map((value) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => onChange(value)}
+          className={`rounded-full px-3 py-1 transition ${
+            mode === value ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'
+          }`}
+        >
+          {value === 'table' ? 'Table' : 'Item'}
+        </button>
+      ))}
     </div>
   )
 }
@@ -859,5 +972,372 @@ function ItemCardSkeleton() {
         <div className="h-4 w-1/2 rounded bg-neutral-100" />
       </div>
     </div>
+  )
+}
+
+// --- Mobile Table/Item View (US-030-037) ------------------------------------
+
+/** US-030/032 -- fetches the full ordered/filtered list once (same
+ * useCollectionItems() hook desktop uses) and hands it to whichever mobile
+ * view mode is active. Unlike desktop's ItemBrowser, there's no local
+ * position state to remount here -- both mobile modes show every item at
+ * once, so a changed query key alone is enough to refetch. */
+/** US-011 -- both mobile views render every item at once (no single "active
+ * card" to swap like desktop's ItemBrowser), so a Related tag jump within
+ * the same page is handled by scrolling the target's row/card into view
+ * instead of changing a position index. */
+function mobileItemDomId(id: number): string {
+  return `mobile-item-${id}`
+}
+
+function MobileCollectionView({
+  collectionId,
+  isWishlist,
+  viewMode,
+  initialItemId,
+  platformId,
+  genreId,
+  franchiseId,
+  sort,
+  hasActiveFilters,
+  onResetFilters,
+  onSelectItem,
+}: {
+  collectionId: number
+  isWishlist: boolean
+  viewMode: MobileViewMode
+  initialItemId: number | null
+  platformId: number | null
+  genreId: number | null
+  franchiseId: number | null
+  sort: SortOrder
+  hasActiveFilters: boolean
+  onResetFilters: () => void
+  onSelectItem: (id: number, itemNumber: number) => void
+}) {
+  const { data: itemsPage } = useCollectionItems(collectionId, {
+    platformId,
+    genreId,
+    franchiseId,
+    sort,
+  })
+  const items = itemsPage?.data ?? []
+  const total = itemsPage?.total ?? 0
+
+  // US-011 -- scrolls the Related-tag jump target into view once it's on
+  // the page. Guarded by a ref (not state) so it only fires once per
+  // distinct initialItemId, even though items/viewMode changing re-runs the
+  // effect (e.g. a stale ?item= left in the URL after later filter tweaks).
+  // Computed manually (not scrollIntoView's block: 'start' + scroll-margin)
+  // because the sticky bar's height varies (it can wrap to 2 lines
+  // depending on how many filters are active/available), so a fixed
+  // scroll-margin guess isn't reliable -- this measures it live instead.
+  const scrolledToRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (initialItemId === null || items.length === 0) return
+    if (scrolledToRef.current === initialItemId) return
+
+    const el = document.getElementById(mobileItemDomId(initialItemId))
+    if (el) {
+      const barHeight = document.getElementById(STICKY_BAR_ID)?.getBoundingClientRect().height ?? 0
+      const top = el.getBoundingClientRect().top + window.scrollY - barHeight - 12
+
+      window.scrollTo({ top, behavior: 'smooth' })
+      scrolledToRef.current = initialItemId
+    }
+    // items.length, not items -- only the transition from "not yet
+    // rendered" to "rendered" matters here, and depending on the array
+    // itself would re-run this every render (a fresh ?? [] each time).
+  }, [initialItemId, items.length, viewMode])
+
+  if (itemsPage && total === 0) {
+    return <EmptyState hasActiveFilters={hasActiveFilters} onResetFilters={onResetFilters} />
+  }
+
+  if (!itemsPage) {
+    return <p className="text-sm text-neutral-500">Loading...</p>
+  }
+
+  return (
+    <div className="w-full">
+      <p className="pb-2 text-sm text-neutral-500">{total} item(s)</p>
+      {viewMode === 'table' ? (
+        <MobileTableView items={items} isWishlist={isWishlist} sort={sort} onSelectItem={onSelectItem} />
+      ) : (
+        <MobileItemView items={items} isWishlist={isWishlist} />
+      )}
+    </div>
+  )
+}
+
+/** US-032 -- Item Number + Title always shown, plus two columns that depend
+ * on collection type and active sort. Price/Most-wanted sort modes aren't
+ * wired up yet (see docs/tz/TECH_DEBT.md), so any sort besides A-Z/Z-A
+ * falls back to the "Newest/Oldest added" column pair for a Wishlist. */
+function mobileTableColumns(
+  isWishlist: boolean,
+  sort: SortOrder,
+): {
+  thirdLabel: string
+  fourthLabel: string
+  thirdValue: (item: ItemSummary) => string
+  fourthValue: (item: ItemSummary) => string
+} {
+  const platformValue = (item: ItemSummary) => item.platform?.abbreviation ?? item.platform?.name ?? '—'
+  const desireValue = (item: ItemSummary) =>
+    item.wishlist_detail?.desire_score != null ? `${item.wishlist_detail.desire_score}%` : '—'
+  const priceValue = (item: ItemSummary) => {
+    const detail = item.wishlist_detail
+    const parts = [
+      detail?.price_new_estimate && `new ${detail.price_new_estimate}`,
+      detail?.price_used_estimate && `used ${detail.price_used_estimate}`,
+    ].filter(Boolean)
+
+    return parts.length > 0 ? parts.join(' / ') : '—'
+  }
+
+  if (!isWishlist) {
+    return {
+      thirdLabel: 'Platform',
+      fourthLabel: 'Genre',
+      thirdValue: platformValue,
+      fourthValue: (item) => item.genres.map((g) => g.name).join(', ') || '—',
+    }
+  }
+
+  if (sort === 'az' || sort === 'za') {
+    return { thirdLabel: 'Desire', fourthLabel: 'Price', thirdValue: desireValue, fourthValue: priceValue }
+  }
+
+  return { thirdLabel: 'Platform', fourthLabel: 'Desire', thirdValue: platformValue, fourthValue: desireValue }
+}
+
+function MobileTableView({
+  items,
+  isWishlist,
+  sort,
+  onSelectItem,
+}: {
+  items: ItemSummary[]
+  isWishlist: boolean
+  sort: SortOrder
+  onSelectItem: (id: number, itemNumber: number) => void
+}) {
+  const columns = mobileTableColumns(isWishlist, sort)
+
+  return (
+    <table className="w-full border-collapse text-left text-sm">
+      <thead>
+        <tr className="border-b border-neutral-200 text-xs text-neutral-500">
+          <th className="w-8 px-2 py-2 font-medium">#</th>
+          <th className="px-2 py-2 font-medium">Title</th>
+          <th className="px-2 py-2 font-medium">{columns.thirdLabel}</th>
+          <th className="px-2 py-2 font-medium">{columns.fourthLabel}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((item, i) => (
+          <tr
+            key={item.id}
+            id={mobileItemDomId(item.id)}
+            onClick={() => onSelectItem(item.id, i + 1)}
+            className="cursor-pointer border-b border-neutral-100 last:border-0 hover:bg-neutral-50"
+          >
+            <td className="px-2 py-2 align-middle text-neutral-400">{i + 1}</td>
+            {/* US-033 -- cover as a background, 30% opacity fading to 5%
+                left-to-right. A white gradient layered over the image
+                (rather than true image opacity) so it fades to the row's
+                own background instead of always fading to white. */}
+            <td
+              className="relative px-2 py-2 align-middle font-medium text-neutral-900"
+              style={
+                item.cover_url
+                  ? {
+                      backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.7), rgba(255,255,255,0.95)), url(${item.cover_url})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }
+                  : undefined
+              }
+            >
+              {item.title}
+            </td>
+            <td className="px-2 py-2 align-middle text-neutral-600">{columns.thirdValue(item)}</td>
+            <td className="px-2 py-2 align-middle text-neutral-600">{columns.fourthValue(item)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function MobileItemView({ items, isWishlist }: { items: ItemSummary[]; isWishlist: boolean }) {
+  return (
+    <div className="flex flex-col gap-4">
+      {items.map((item, i) => (
+        <div key={item.id} id={mobileItemDomId(item.id)}>
+          <MobileItemCard itemId={item.id} itemNumber={i + 1} isWishlist={isWishlist} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** US-036 -- full item detail, one per stacked card, in the spec's exact
+ * field order (image+overlay, item number, title, wishlist fields,
+ * platform, genres, description, franchise, available-on, related tags,
+ * year). Each card fetches its own detail via useItem() -- the same hook
+ * desktop uses for its single active card -- rather than the lighter
+ * ItemSummary from the list endpoint. Fine at "dozens to low hundreds" of
+ * items (see ItemController::index()'s docblock); not lazy/virtualized --
+ * see docs/tz/TECH_DEBT.md if collections grow much larger than that. */
+function MobileItemCard({
+  itemId,
+  itemNumber,
+  isWishlist,
+}: {
+  itemId: number
+  itemNumber: number
+  isWishlist: boolean
+}) {
+  const { data: item } = useItem(itemId)
+
+  if (!item) {
+    return <ItemCardSkeleton />
+  }
+
+  const meta = item.metadata
+  const wishlist = item.wishlist_detail
+  const showPriorityBadge = isWishlist && wishlist?.priority
+  const showAcquisitionBadge = !isWishlist && wishlist?.received
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-neutral-100">
+        {item.cover_url ? (
+          <img src={item.cover_url} alt={item.title} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
+            No cover
+          </div>
+        )}
+        {showPriorityBadge && wishlist && (
+          <PriorityBadge priority={wishlist.priority as Priority} desireScore={wishlist.desire_score ?? 0} />
+        )}
+        {showAcquisitionBadge && wishlist && <AcquisitionBadge detail={wishlist} />}
+      </div>
+
+      <p className="text-xs text-neutral-400">Item {itemNumber}</p>
+      <h2 className="text-xl font-semibold text-neutral-900">{item.title}</h2>
+
+      {isWishlist && wishlist && <WishlistFields detail={wishlist} />}
+
+      {item.platform && <p className="text-sm text-neutral-500">{item.platform.name}</p>}
+
+      {item.genres.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {item.genres.map((genre) => (
+            <span
+              key={genre.id}
+              className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs text-neutral-600"
+            >
+              {genre.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {meta?.description && (
+        <p className="text-sm leading-relaxed text-neutral-600">{meta.description}</p>
+      )}
+
+      {meta?.franchise && (
+        <p className="text-sm text-neutral-500">
+          Franchise: <span className="text-neutral-700">{meta.franchise.name}</span>
+        </p>
+      )}
+
+      {meta && meta.other_platforms.length > 0 && (
+        <TagRow label="Available on" tags={meta.other_platforms} />
+      )}
+
+      {meta && (meta.sequels.length > 0 || meta.prequels.length > 0 || meta.remakes.length > 0) && (
+        <RelatedTagRow prequels={meta.prequels} sequels={meta.sequels} remakes={meta.remakes} />
+      )}
+
+      {meta?.release_year && <p className="text-sm text-neutral-500">{meta.release_year}</p>}
+    </div>
+  )
+}
+
+/** US-035 -- tapping a Table View row opens this, same fields/order as
+ * Item View (literally reuses MobileItemCard). */
+function ItemDetailPopup({
+  itemId,
+  itemNumber,
+  isWishlist,
+  onClose,
+}: {
+  itemId: number
+  itemNumber: number
+  isWishlist: boolean
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4"
+      onClick={onClose}
+    >
+      <div className="mt-8 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="mb-2 ml-auto flex h-8 w-8 items-center justify-center rounded-full bg-white text-neutral-600 shadow-md"
+        >
+          ✕
+        </button>
+        <MobileItemCard itemId={itemId} itemNumber={itemNumber} isWishlist={isWishlist} />
+      </div>
+    </div>
+  )
+}
+
+/** US-037 -- floating scroll-to-top button, bottom-left, appears once the
+ * page has been scrolled. window.scrollY is an external browser API (not
+ * derived from props/render), so tracking it via an effect-driven listener
+ * is the right tool here, not a lint-rule violation. */
+function ScrollToTopButton() {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    function onScroll() {
+      setVisible(window.scrollY > 400)
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  if (!visible) return null
+
+  return (
+    <button
+      type="button"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      aria-label="Scroll to top"
+      className="fixed bottom-4 left-4 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-neutral-900/90 text-white shadow-lg backdrop-blur"
+    >
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5">
+        <path
+          d="M12 19V5M5 12l7-7 7 7"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
   )
 }

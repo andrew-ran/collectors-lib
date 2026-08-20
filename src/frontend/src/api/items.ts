@@ -66,9 +66,28 @@ interface PaginatedResponse<T> {
   last_page: number
 }
 
+/** US-032/033 -- compact wishlist fields needed for the mobile Table View's
+ * sort-dependent columns; a subset of WishlistDetailRef (no gifter -- that
+ * relation isn't eager-loaded for the list endpoint, only single-item
+ * detail). */
+export interface WishlistSummaryRef {
+  priority: Priority | null
+  desire_score: number | null
+  price_new_estimate: string | null
+  price_used_estimate: string | null
+}
+
+/** US-032/033 -- extended beyond the original {id, title} to cover the
+ * mobile Table View's columns (platform/genre, cover for the title column's
+ * background gradient, wishlist desire/price) in the same request as the
+ * ordered id list, instead of a per-row detail fetch. */
 export interface ItemSummary {
   id: number
   title: string
+  cover_url: string | null
+  platform: PlatformRef | null
+  genres: GenreRef[]
+  wishlist_detail: WishlistSummaryRef | null
 }
 
 /** US-009 -- "My Collection" set; Wishlist's desire-score/price options
