@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CollectionController;
+use App\Http\Controllers\Api\DictionaryController;
 use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\IgdbSearchController;
 use App\Http\Controllers\Api\ItemController;
@@ -41,9 +42,16 @@ Route::middleware('throttle:api')->group(function () {
         Route::post('/items', [ItemController::class, 'store']);
         Route::put('/items/{item}', [ItemController::class, 'update']);
         Route::delete('/items/{item}', [ItemController::class, 'destroy']); // US-115
+        Route::post('/items/{item}/rescrape', [ItemController::class, 'rescrape']); // US-113
 
         // US-110 -- admin-only IGDB search for the "add item" flow.
         Route::get('/search/igdb', [IgdbSearchController::class, 'search']);
+
+        // US-112 -- edit-form autocomplete dictionaries, see DictionaryController.
+        Route::get('/platforms', [DictionaryController::class, 'platforms']);
+        Route::get('/genres', [DictionaryController::class, 'genres']);
+        Route::get('/franchises', [DictionaryController::class, 'franchises']);
+        Route::get('/companies', [DictionaryController::class, 'companies']);
 
         Route::put('/settings', [SiteSettingsController::class, 'update']); // US-180
     });

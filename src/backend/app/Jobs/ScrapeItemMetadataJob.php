@@ -16,15 +16,17 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
 
 /**
- * Fetches IGDB metadata for a newly-added item and stores it in
- * item_metadata, matching/creating franchise + company rows along the way.
- * See ARCHITECTURE.md's Request Flow and API_SOURCES.md's
- * "ScrapeItemMetadataJob flow".
+ * Fetches IGDB metadata for an item and stores it in item_metadata,
+ * matching/creating franchise + company rows along the way. See
+ * ARCHITECTURE.md's Request Flow and API_SOURCES.md's "ScrapeItemMetadataJob
+ * flow". Exercised live end-to-end 2026-08-17.
  *
- * Not yet exercised end-to-end -- blocked on IgdbService's credentials (see
- * its docblock). Dispatched automatically by ItemController::store() when
- * an item is created with an igdb_id, so this starts working the moment
- * IGDB_CLIENT_ID/IGDB_CLIENT_SECRET are set -- nothing else to wire up.
+ * Dispatched automatically by ItemController::store() when an item is
+ * created with an igdb_id, and again on demand by
+ * ItemController::rescrape() (US-113). Either way, any field the admin has
+ * manually edited via the edit form (US-112, see
+ * ItemController::applyMetadataInput()) is skipped here -- see
+ * manual_overrides/$isOverridden() below.
  */
 class ScrapeItemMetadataJob implements ShouldQueue
 {
@@ -55,35 +57,68 @@ class ScrapeItemMetadataJob implements ShouldQueue
         $involvedCompanies = $game['involved_companies'] ?? [];
         $related = $this->relatedByFranchise($igdb, $game);
 
-        $item->metadata()->updateOrCreate([], [
-            'description' => $game['summary'] ?? null,
+        // US-112/113 -- a field the admin has manually edited is left alone
+        // by re-scrape; everything else is always refreshed (including the
+        // fields that were never editable in the admin form to begin with:
+        // other_platforms/sequels/prequels/dlcs/igdb_raw/release_year).
+        // manual_overrides itself is deliberately not overwritten here, so
+        // the flags set by ItemController::applyMetadataInput() survive.
+        $overrides = $item->metadata?->manual_overrides ?? [];
+        $isOverridden = fn (string $field) => (bool) ($overrides[$field] ?? false);
+
+        $metadataAttributes = [
             'release_year' => isset($game['first_release_date'])
                 ? gmdate('Y', $game['first_release_date'])
                 : null,
-            'franchise_id' => $this->matchFranchise($game['franchises'][0] ?? null),
-            'developer' => $this->companyName($involvedCompanies, developer: true),
-            'publisher' => $this->companyName($involvedCompanies, developer: false),
             'other_platforms' => $game['platforms'] ?? [],
             'sequels' => $related['sequels'],
             'prequels' => $related['prequels'],
-            'remakes' => $game['remakes'] ?? [],
-            // Captured but not shown in the UI yet -- see US-011 tech debt
-            // note, may be surfaced alongside remakes later.
-            'remasters' => $game['remasters'] ?? [],
             'dlcs' => $game['dlcs'] ?? [],
             'igdb_raw' => $game,
-        ]);
+        ];
+
+        if (! $isOverridden('description')) {
+            $metadataAttributes['description'] = $game['summary'] ?? null;
+        }
+
+        if (! $isOverridden('franchise_id')) {
+            $metadataAttributes['franchise_id'] = $this->matchFranchise($game['franchises'][0] ?? null);
+        }
+
+        if (! $isOverridden('developer')) {
+            $metadataAttributes['developer'] = $this->companyName($involvedCompanies, developer: true);
+        }
+
+        if (! $isOverridden('publisher')) {
+            $metadataAttributes['publisher'] = $this->companyName($involvedCompanies, developer: false);
+        }
+
+        if (! $isOverridden('remakes')) {
+            $metadataAttributes['remakes'] = $game['remakes'] ?? [];
+        }
+
+        if (! $isOverridden('remasters')) {
+            // Captured but not shown in the UI yet -- see US-011 tech debt
+            // note, may be surfaced alongside remakes later.
+            $metadataAttributes['remasters'] = $game['remasters'] ?? [];
+        }
+
+        $item->metadata()->updateOrCreate([], $metadataAttributes);
 
         $this->matchCompanies($involvedCompanies);
-        $item->genres()->sync($this->matchGenres($game['genres'] ?? []));
+
+        if (! $isOverridden('genres')) {
+            $item->genres()->sync($this->matchGenres($game['genres'] ?? []));
+        }
 
         $item->update([
             'scrape_status' => ScrapeStatus::Scraped,
             'scraped_at' => now(),
             // IGDB is the authoritative title once an igdb_id is set -- the
             // title supplied at creation (e.g. a search-result label or a
-            // placeholder) is always superseded by the scrape.
-            'title' => $game['name'] ?? $item->title,
+            // placeholder) is always superseded by the scrape, unless the
+            // admin has since manually edited it (US-112).
+            'title' => $isOverridden('title') ? $item->title : ($game['name'] ?? $item->title),
         ]);
 
         // Cover download + WebP conversion (ImageService) is a separate,
