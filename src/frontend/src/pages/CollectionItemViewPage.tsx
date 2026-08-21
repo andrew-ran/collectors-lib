@@ -16,6 +16,8 @@ import {
   type WishlistDetailRef,
 } from '../api/items'
 import { Dropdown, DropdownItem } from '../components/Dropdown'
+import { CurrencyProvider } from '../hooks/CurrencyProvider'
+import { CURRENCIES, CURRENCY_META, useCurrency } from '../hooks/currency'
 import { useIsMobile } from '../hooks/useIsMobile'
 
 /** US-030/031 -- mobile default is Table View; Item View is the desktop-
@@ -67,12 +69,15 @@ function toIntOrNull(value: string | null): number | null {
  * scroll on mobile. Table rows open a popup with the same fields/order as
  * Item View on tap. A floating scroll-to-top button appears once scrolled.
  *
+ * And US-170/171: a currency selector (top of the interface, next to the
+ * collection switcher) recalculates every displayed wishlist price on the
+ * fly via useCurrency()'s cached /api/exchange-rates -- prices are always
+ * stored in EUR, converted+rounded per currency (see hooks/currency.ts).
+ *
  * Deliberately scoped down for this pass -- explicitly NOT included yet
  * (see docs/tz/BACKLOG.md Phase 2):
  * - US-012 photo slider/lightbox -- no admin-uploaded photos exist yet,
  *   just the single primary cover image
- * - US-170/171 currency selector/conversion -- wishlist prices render as
- *   plain numbers, no currency symbol or conversion yet
  * - Wishlist's Most/Least-wanted and Price sort options (US-009) -- the
  *   fields exist now, but the sort UI itself isn't wired up in this pass,
  *   so US-032's table columns for those two sorts aren't reachable yet
@@ -140,88 +145,97 @@ export function CollectionItemViewPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center gap-6 px-4 py-10">
-      {/* US-034 -- collection name/switcher is never sticky, on mobile or
-          desktop. Wrapped in its own elevated stacking context (z-30) so
-          its dropdown always paints above the sticky sort/filter bar (z-20)
-          below it, regardless of DOM order -- otherwise the sticky bar's
-          own stacking context would sit on top of it once scrolled. */}
-      <div className="relative z-30">
-        <CollectionSwitcher
-          collections={collections ?? []}
-          current={collection}
-          onSelect={selectCollection}
-        />
-      </div>
+    <CurrencyProvider>
+      <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center gap-6 px-4 py-10">
+        {/* US-034 -- collection name/switcher is never sticky, on mobile or
+            desktop. Wrapped in its own elevated stacking context (z-30) so
+            its dropdown always paints above the sticky sort/filter bar (z-20)
+            below it, regardless of DOM order -- otherwise the sticky bar's
+            own stacking context would sit on top of it once scrolled.
+            US-170's currency selector lives here too -- "top of the
+            interface", per spec, and not gated to Wishlist collections so it
+            doesn't appear/disappear as you switch collections; it's simply
+            inert (nothing to convert) outside the Wishlist. */}
+        <div className="relative z-30 flex w-full items-center justify-between gap-2">
+          <CollectionSwitcher
+            collections={collections ?? []}
+            current={collection}
+            onSelect={selectCollection}
+          />
+          <CurrencySelector />
+        </div>
 
-      {/* US-034 -- only the mobile sort/filter bar becomes sticky once
+        {/* US-034 -- only the mobile sort/filter bar becomes sticky once
           scrolled; desktop's stays in normal flow. id is read by the
           US-011 mobile scroll-to-item logic below, to offset for its
           actual (variable, can wrap to 2 lines) rendered height. */}
-      <div
-        id={STICKY_BAR_ID}
-        className={isMobile ? 'sticky top-0 z-20 w-full bg-white/95 py-2 backdrop-blur' : 'w-full'}
-      >
-        <FilterSortBar
-          options={filterOptions}
-          platformId={platformId}
-          genreId={genreId}
-          franchiseId={franchiseId}
-          sort={sort}
-          onPlatformChange={(id) => updateParams({ platform: id })}
-          onGenreChange={(id) => updateParams({ genre: id })}
-          onFranchiseChange={(id) => updateParams({ franchise: id })}
-          onSortChange={(value) => updateParams({ sort: value === 'newest' ? null : value })}
-          mobileViewMode={isMobile ? mobileViewMode : null}
-          onMobileViewModeChange={setMobileViewMode}
-        />
-      </div>
+        <div
+          id={STICKY_BAR_ID}
+          className={
+            isMobile ? 'sticky top-0 z-20 w-full bg-white/95 py-2 backdrop-blur' : 'w-full'
+          }
+        >
+          <FilterSortBar
+            options={filterOptions}
+            platformId={platformId}
+            genreId={genreId}
+            franchiseId={franchiseId}
+            sort={sort}
+            onPlatformChange={(id) => updateParams({ platform: id })}
+            onGenreChange={(id) => updateParams({ genre: id })}
+            onFranchiseChange={(id) => updateParams({ franchise: id })}
+            onSortChange={(value) => updateParams({ sort: value === 'newest' ? null : value })}
+            mobileViewMode={isMobile ? mobileViewMode : null}
+            onMobileViewModeChange={setMobileViewMode}
+          />
+        </div>
 
-      {isMobile ? (
-        <MobileCollectionView
-          collectionId={collection.id}
-          isWishlist={collection.is_wishlist}
-          viewMode={mobileViewMode}
-          initialItemId={itemIdParam}
-          platformId={platformId}
-          genreId={genreId}
-          franchiseId={franchiseId}
-          sort={sort}
-          hasActiveFilters={hasActiveFilters}
-          onResetFilters={resetFilters}
-          onSelectItem={(id, number) => setPopupItem({ id, number })}
-        />
-      ) : (
-        // Remounts (resetting the browser's local position state) whenever
-        // collection/filters/sort change -- covers both clicks here and
-        // direct URL/back-button navigation, without an effect+setState.
-        <ItemBrowser
-          key={`${collection.id}-${platformId ?? ''}-${genreId ?? ''}-${franchiseId ?? ''}-${sort}-${itemIdParam ?? ''}`}
-          collectionId={collection.id}
-          isWishlist={collection.is_wishlist}
-          initialItemId={itemIdParam}
-          platformId={platformId}
-          genreId={genreId}
-          franchiseId={franchiseId}
-          sort={sort}
-          hasActiveFilters={hasActiveFilters}
-          onResetFilters={resetFilters}
-        />
-      )}
+        {isMobile ? (
+          <MobileCollectionView
+            collectionId={collection.id}
+            isWishlist={collection.is_wishlist}
+            viewMode={mobileViewMode}
+            initialItemId={itemIdParam}
+            platformId={platformId}
+            genreId={genreId}
+            franchiseId={franchiseId}
+            sort={sort}
+            hasActiveFilters={hasActiveFilters}
+            onResetFilters={resetFilters}
+            onSelectItem={(id, number) => setPopupItem({ id, number })}
+          />
+        ) : (
+          // Remounts (resetting the browser's local position state) whenever
+          // collection/filters/sort change -- covers both clicks here and
+          // direct URL/back-button navigation, without an effect+setState.
+          <ItemBrowser
+            key={`${collection.id}-${platformId ?? ''}-${genreId ?? ''}-${franchiseId ?? ''}-${sort}-${itemIdParam ?? ''}`}
+            collectionId={collection.id}
+            isWishlist={collection.is_wishlist}
+            initialItemId={itemIdParam}
+            platformId={platformId}
+            genreId={genreId}
+            franchiseId={franchiseId}
+            sort={sort}
+            hasActiveFilters={hasActiveFilters}
+            onResetFilters={resetFilters}
+          />
+        )}
 
-      {/* US-035 -- Table View row tap opens the same fields/order as Item
+        {/* US-035 -- Table View row tap opens the same fields/order as Item
           View, in a popup. */}
-      {popupItem !== null && (
-        <ItemDetailPopup
-          itemId={popupItem.id}
-          itemNumber={popupItem.number}
-          isWishlist={collection.is_wishlist}
-          onClose={() => setPopupItem(null)}
-        />
-      )}
+        {popupItem !== null && (
+          <ItemDetailPopup
+            itemId={popupItem.id}
+            itemNumber={popupItem.number}
+            isWishlist={collection.is_wishlist}
+            onClose={() => setPopupItem(null)}
+          />
+        )}
 
-      {isMobile && <ScrollToTopButton />}
-    </div>
+        {isMobile && <ScrollToTopButton />}
+      </div>
+    </CurrencyProvider>
   )
 }
 
@@ -302,11 +316,7 @@ function ItemBrowser({
 
         {item ? <ItemCard item={item} isWishlist={isWishlist} /> : <ItemCardSkeleton />}
 
-        <NavButton
-          direction="next"
-          onClick={goNext}
-          disabled={clampedIndex >= items.length - 1}
-        />
+        <NavButton direction="next" onClick={goNext} disabled={clampedIndex >= items.length - 1} />
       </div>
 
       <p className="text-sm text-neutral-500">
@@ -318,9 +328,7 @@ function ItemBrowser({
 
 function CenteredMessage({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center text-neutral-500">
-      {children}
-    </div>
+    <div className="flex min-h-screen items-center justify-center text-neutral-500">{children}</div>
   )
 }
 
@@ -379,6 +387,50 @@ function CollectionSwitcher({
                 }}
               >
                 {c.name}
+              </DropdownItem>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Dropdown>
+  )
+}
+
+/** US-170 -- pill button (flag + 3-letter code) at the top of the
+ * interface. Picking a currency immediately recalculates every displayed
+ * price (US-171) -- there's nothing to fetch on change, useCurrency()'s
+ * formatPrice() just uses the already-cached rates. Currencies without a
+ * cached rate yet aren't offered (US-006a's disabled-list-item pattern),
+ * rather than showing a currency that can't actually convert anything. */
+function CurrencySelector() {
+  const { currency, setCurrency, availableCurrencies } = useCurrency()
+  const meta = CURRENCY_META[currency]
+
+  return (
+    <Dropdown
+      trigger={
+        <span className="flex items-center gap-1">
+          <span>{meta.flag}</span>
+          <span>{currency}</span>
+        </span>
+      }
+    >
+      {(close) => (
+        <ul>
+          {CURRENCIES.map((c) => (
+            <li key={c}>
+              <DropdownItem
+                active={c === currency}
+                disabled={!availableCurrencies.includes(c)}
+                onClick={() => {
+                  setCurrency(c)
+                  close()
+                }}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span>{CURRENCY_META[c].flag}</span>
+                  <span>{c}</span>
+                </span>
               </DropdownItem>
             </li>
           ))}
@@ -640,7 +692,10 @@ function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean 
         )}
 
         {showPriorityBadge && wishlist && (
-          <PriorityBadge priority={wishlist.priority as Priority} desireScore={wishlist.desire_score ?? 0} />
+          <PriorityBadge
+            priority={wishlist.priority as Priority}
+            desireScore={wishlist.desire_score ?? 0}
+          />
         )}
         {showAcquisitionBadge && wishlist && <AcquisitionBadge detail={wishlist} />}
       </div>
@@ -682,9 +737,10 @@ function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean 
           <TagRow label="Available on" tags={meta.other_platforms} />
         )}
 
-        {meta && (meta.sequels.length > 0 || meta.prequels.length > 0 || meta.remakes.length > 0) && (
-          <RelatedTagRow prequels={meta.prequels} sequels={meta.sequels} remakes={meta.remakes} />
-        )}
+        {meta &&
+          (meta.sequels.length > 0 || meta.prequels.length > 0 || meta.remakes.length > 0) && (
+            <RelatedTagRow prequels={meta.prequels} sequels={meta.sequels} remakes={meta.remakes} />
+          )}
 
         {isWishlist && wishlist && <WishlistFields detail={wishlist} />}
       </div>
@@ -695,6 +751,7 @@ function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean 
 /** US-020 -- the Wishlist-only fields shown alongside the US-010 base info:
  * condition preference, a free-text edition note, and estimated price. */
 function WishlistFields({ detail }: { detail: WishlistDetailRef }) {
+  const { formatPrice } = useCurrency()
   const hasPriceEstimate = detail.price_new_estimate !== null || detail.price_used_estimate !== null
 
   if (!detail.condition_preference && !detail.edition_note && !hasPriceEstimate) {
@@ -705,7 +762,8 @@ function WishlistFields({ detail }: { detail: WishlistDetailRef }) {
     <div className="flex flex-col gap-1 border-t border-neutral-100 pt-3 text-sm text-neutral-600">
       {detail.condition_preference && (
         <p>
-          Condition: <span className="text-neutral-800">{CONDITION_LABELS[detail.condition_preference]}</span>
+          Condition:{' '}
+          <span className="text-neutral-800">{CONDITION_LABELS[detail.condition_preference]}</span>
         </p>
       )}
       {detail.edition_note && (
@@ -718,8 +776,8 @@ function WishlistFields({ detail }: { detail: WishlistDetailRef }) {
           Est. price:{' '}
           <span className="text-neutral-800">
             {[
-              detail.price_new_estimate && `new ${detail.price_new_estimate}`,
-              detail.price_used_estimate && `used ${detail.price_used_estimate}`,
+              detail.price_new_estimate && `new ${formatPrice(detail.price_new_estimate)}`,
+              detail.price_used_estimate && `used ${formatPrice(detail.price_used_estimate)}`,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -913,7 +971,8 @@ function RelatedTag({ game }: { game: RelatedGameRef }) {
   const [, setSearchParams] = useSearchParams()
   const [hovered, setHovered] = useState(false)
 
-  const clickable = game.status !== 'unowned' && game.item_id !== null && game.collection_slug !== null
+  const clickable =
+    game.status !== 'unowned' && game.item_id !== null && game.collection_slug !== null
   const tooltip = STATUS_TOOLTIP[game.status]
 
   function handleClick() {
@@ -1062,7 +1121,12 @@ function MobileCollectionView({
     <div className="w-full">
       <p className="pb-2 text-sm text-neutral-500">{total} item(s)</p>
       {viewMode === 'table' ? (
-        <MobileTableView items={items} isWishlist={isWishlist} sort={sort} onSelectItem={onSelectItem} />
+        <MobileTableView
+          items={items}
+          isWishlist={isWishlist}
+          sort={sort}
+          onSelectItem={onSelectItem}
+        />
       ) : (
         <MobileItemView items={items} isWishlist={isWishlist} />
       )}
@@ -1077,20 +1141,22 @@ function MobileCollectionView({
 function mobileTableColumns(
   isWishlist: boolean,
   sort: SortOrder,
+  formatPrice: (eurAmount: string | number | null) => string | null,
 ): {
   thirdLabel: string
   fourthLabel: string
   thirdValue: (item: ItemSummary) => string
   fourthValue: (item: ItemSummary) => string
 } {
-  const platformValue = (item: ItemSummary) => item.platform?.abbreviation ?? item.platform?.name ?? '—'
+  const platformValue = (item: ItemSummary) =>
+    item.platform?.abbreviation ?? item.platform?.name ?? '—'
   const desireValue = (item: ItemSummary) =>
     item.wishlist_detail?.desire_score != null ? `${item.wishlist_detail.desire_score}%` : '—'
   const priceValue = (item: ItemSummary) => {
     const detail = item.wishlist_detail
     const parts = [
-      detail?.price_new_estimate && `new ${detail.price_new_estimate}`,
-      detail?.price_used_estimate && `used ${detail.price_used_estimate}`,
+      detail?.price_new_estimate && `new ${formatPrice(detail.price_new_estimate)}`,
+      detail?.price_used_estimate && `used ${formatPrice(detail.price_used_estimate)}`,
     ].filter(Boolean)
 
     return parts.length > 0 ? parts.join(' / ') : '—'
@@ -1106,10 +1172,20 @@ function mobileTableColumns(
   }
 
   if (sort === 'az' || sort === 'za') {
-    return { thirdLabel: 'Desire', fourthLabel: 'Price', thirdValue: desireValue, fourthValue: priceValue }
+    return {
+      thirdLabel: 'Desire',
+      fourthLabel: 'Price',
+      thirdValue: desireValue,
+      fourthValue: priceValue,
+    }
   }
 
-  return { thirdLabel: 'Platform', fourthLabel: 'Desire', thirdValue: platformValue, fourthValue: desireValue }
+  return {
+    thirdLabel: 'Platform',
+    fourthLabel: 'Desire',
+    thirdValue: platformValue,
+    fourthValue: desireValue,
+  }
 }
 
 function MobileTableView({
@@ -1123,7 +1199,8 @@ function MobileTableView({
   sort: SortOrder
   onSelectItem: (id: number, itemNumber: number) => void
 }) {
-  const columns = mobileTableColumns(isWishlist, sort)
+  const { formatPrice } = useCurrency()
+  const columns = mobileTableColumns(isWishlist, sort, formatPrice)
 
   return (
     <table className="w-full border-collapse text-left text-sm">
@@ -1222,7 +1299,10 @@ function MobileItemCard({
           </div>
         )}
         {showPriorityBadge && wishlist && (
-          <PriorityBadge priority={wishlist.priority as Priority} desireScore={wishlist.desire_score ?? 0} />
+          <PriorityBadge
+            priority={wishlist.priority as Priority}
+            desireScore={wishlist.desire_score ?? 0}
+          />
         )}
         {showAcquisitionBadge && wishlist && <AcquisitionBadge detail={wishlist} />}
       </div>

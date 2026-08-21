@@ -80,10 +80,15 @@ export function Dropdown({
 
 export function DropdownItem({
   active,
+  disabled,
   onClick,
   children,
 }: {
   active?: boolean
+  /** US-170's currency list -- an item can be individually grayed out/
+   * non-clickable (e.g. no cached exchange rate yet), same idea as
+   * US-006a's whole-dropdown disabled state but per-row. */
+  disabled?: boolean
   onClick: () => void
   children: ReactNode
 }) {
@@ -91,7 +96,8 @@ export function DropdownItem({
     <button
       type="button"
       onClick={onClick}
-      className={`block w-full px-3 py-2 text-left text-sm whitespace-nowrap hover:bg-neutral-50 ${
+      disabled={disabled}
+      className={`block w-full px-3 py-2 text-left text-sm whitespace-nowrap hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
         active ? 'font-medium text-neutral-900' : 'text-neutral-600'
       }`}
     >
