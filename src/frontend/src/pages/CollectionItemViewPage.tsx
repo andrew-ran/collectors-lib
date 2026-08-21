@@ -676,6 +676,10 @@ const CONDITION_LABELS: Record<ConditionPreference, string> = {
  * link straight to that item's edit form. Nothing renders for a visitor
  * (no token) -- this is just a shortcut, not a permission check; the real
  * gate is ProtectedRoute on /admin/items/:id/edit itself. */
+/** Pinned to the top-right corner of the card (its parent must be
+ * `relative`) rather than sitting inline next to the title -- stays in the
+ * same spot regardless of title length and doesn't push any other card
+ * content around. */
 function AdminEditLink({ itemId }: { itemId: number }) {
   const token = useAuthStore((state) => state.token)
   const location = useLocation()
@@ -689,7 +693,7 @@ function AdminEditLink({ itemId }: { itemId: number }) {
       // collection/filters/sort/item) after Save/Delete, instead of always
       // landing on /admin -- see resolveReturnTo() there.
       state={{ from: `${location.pathname}${location.search}` }}
-      className="text-xs text-neutral-400 underline hover:text-neutral-600"
+      className="absolute top-3 right-3 z-10 rounded-full border border-neutral-200 bg-white/90 px-2.5 py-1 text-xs font-medium text-neutral-600 shadow-sm backdrop-blur-sm hover:border-neutral-300 hover:text-neutral-900"
     >
       Edit
     </Link>
@@ -707,7 +711,9 @@ function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean 
   const showAcquisitionBadge = !isWishlist && wishlist?.received
 
   return (
-    <div className="flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm sm:flex-row">
+    <div className="relative flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm sm:flex-row">
+      <AdminEditLink itemId={item.id} />
+
       <div className="relative aspect-[3/4] w-full shrink-0 bg-neutral-100 sm:w-64">
         {item.cover_url ? (
           <img src={item.cover_url} alt={item.title} className="h-full w-full object-cover" />
@@ -728,10 +734,7 @@ function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean 
 
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-2xl font-semibold text-neutral-900">{item.title}</h2>
-            <AdminEditLink itemId={item.id} />
-          </div>
+          <h2 className="text-2xl font-semibold text-neutral-900">{item.title}</h2>
           <p className="mt-0.5 text-sm text-neutral-500">
             {[item.platform?.name, meta?.release_year].filter(Boolean).join(' · ')}
           </p>
@@ -1318,7 +1321,9 @@ function MobileItemCard({
   const showAcquisitionBadge = !isWishlist && wishlist?.received
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <div className="relative flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+      <AdminEditLink itemId={item.id} />
+
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-neutral-100">
         {item.cover_url ? (
           <img src={item.cover_url} alt={item.title} className="h-full w-full object-cover" />
@@ -1337,10 +1342,7 @@ function MobileItemCard({
       </div>
 
       <p className="text-xs text-neutral-400">Item {itemNumber}</p>
-      <div className="flex items-baseline gap-2">
-        <h2 className="text-xl font-semibold text-neutral-900">{item.title}</h2>
-        <AdminEditLink itemId={item.id} />
-      </div>
+      <h2 className="text-xl font-semibold text-neutral-900">{item.title}</h2>
 
       {isWishlist && wishlist && <WishlistFields detail={wishlist} />}
 
