@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useAuthStore } from '../stores/authStore'
 import { useCollections, type Collection } from '../api/collections'
 import {
   useCollectionItems,
@@ -670,6 +671,26 @@ const CONDITION_LABELS: Record<ConditionPreference, string> = {
   cartridge_only: 'Cartridge only (no box)',
 }
 
+/** US-112 -- a logged-in admin browsing the public site (this page is
+ * public/unauthenticated, unlike everything under /admin) gets a small Edit
+ * link straight to that item's edit form. Nothing renders for a visitor
+ * (no token) -- this is just a shortcut, not a permission check; the real
+ * gate is ProtectedRoute on /admin/items/:id/edit itself. */
+function AdminEditLink({ itemId }: { itemId: number }) {
+  const token = useAuthStore((state) => state.token)
+
+  if (!token) return null
+
+  return (
+    <Link
+      to={`/admin/items/${itemId}/edit`}
+      className="text-xs text-neutral-400 underline hover:text-neutral-600"
+    >
+      Edit
+    </Link>
+  )
+}
+
 function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean }) {
   const meta = item.metadata
   const wishlist = item.wishlist_detail
@@ -702,7 +723,10 @@ function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean 
 
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div>
-          <h2 className="text-2xl font-semibold text-neutral-900">{item.title}</h2>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-2xl font-semibold text-neutral-900">{item.title}</h2>
+            <AdminEditLink itemId={item.id} />
+          </div>
           <p className="mt-0.5 text-sm text-neutral-500">
             {[item.platform?.name, meta?.release_year].filter(Boolean).join(' · ')}
           </p>
@@ -1308,7 +1332,10 @@ function MobileItemCard({
       </div>
 
       <p className="text-xs text-neutral-400">Item {itemNumber}</p>
-      <h2 className="text-xl font-semibold text-neutral-900">{item.title}</h2>
+      <div className="flex items-baseline gap-2">
+        <h2 className="text-xl font-semibold text-neutral-900">{item.title}</h2>
+        <AdminEditLink itemId={item.id} />
+      </div>
 
       {isWishlist && wishlist && <WishlistFields detail={wishlist} />}
 

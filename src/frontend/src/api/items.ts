@@ -204,6 +204,13 @@ export interface ItemMetadataDetail {
   /** Captured from IGDB but not surfaced in the UI yet -- see US-011 tech
    * debt note, may be shown alongside remakes in a future pass. */
   remasters: IgdbRef[]
+  /** US-112 -- which fields the admin has manually edited, keyed by the
+   * same names ItemController::applyMetadataInput() uses ('description',
+   * 'franchise_id', 'developer', 'publisher', 'genres') plus 'title' (an
+   * `items` column, tracked in this same blob regardless). Drives the edit
+   * form's "manually edited" indicator and is otherwise only read by
+   * ScrapeItemMetadataJob server-side. */
+  manual_overrides: Record<string, boolean>
 }
 
 /** US-021/022 -- only present when the item has a gifter row set for it. */
@@ -237,6 +244,8 @@ export interface WishlistDetailRef {
   thank_you_note: string | null
 }
 
+export type AcquiredDatePrecision = 'day' | 'month' | 'year'
+
 export interface ItemDetail {
   id: number
   title: string
@@ -248,9 +257,28 @@ export interface ItemDetail {
   genres: GenreRef[]
   metadata: ItemMetadataDetail | null
   wishlist_detail: WishlistDetailRef | null
+  // US-112/114 -- raw columns the public Item View never reads, but the
+  // admin edit form does. Already present in ItemController::show()'s
+  // response today (it just serializes the whole Eloquent model) -- these
+  // were only missing from the type, not the API.
+  collection_id: number
+  igdb_id: number | null
+  custom_identifier: string | null
+  platform_id: number | null
+  acquired_date: string | null
+  acquired_date_precision: AcquiredDatePrecision | null
+  purchase_price: string | null
+  notes: string | null
+  /** Set by ScrapeItemMetadataJob on each successful scrape -- used purely
+   * as a remount key by AdminEditItemPage (US-113) to reseed its form after
+   * a re-scrape completes, not displayed anywhere. */
+  scraped_at: string | null
 }
 
-/** US-010 -- full detail for the currently displayed card. */
+/** US-010 -- full detail for the currently displayed card. Also polls while
+ * a scrape is in flight (US-113's "Refresh metadata" re-triggers one), same
+ * idea as useItemStatus -- so the edit form's "Scraping..." status clears
+ * on its own once ScrapeItemMetadataJob finishes, without a manual refresh. */
 export function useItem(itemId: number | null) {
   return useQuery({
     queryKey: ['items', itemId, 'detail'],
@@ -261,5 +289,86 @@ export function useItem(itemId: number | null) {
     },
     enabled: itemId !== null,
     staleTime: 60 * 1000,
+    refetchInterval: (query) => {
+      const status = query.state.data?.scrape_status
+
+      return status === 'pending' || status === 'scraping' ? 1500 : false
+    },
+  })
+}
+
+/** US-112 -- edit form payload. `description`/`franchise_name`/`developer`/
+ * `publisher`/`genres` are optional on the wire (see
+ * ItemController::validated()'s 'sometimes' rules) but the edit form always
+ * sends all of them together -- see useUpdateItem's docblock. */
+export interface UpdateItemPayload {
+  collection_id: number
+  type: string
+  igdb_id: number | null
+  custom_identifier: string | null
+  title: string
+  subtitle: string | null
+  platform_id: number | null
+  acquired_date: string | null
+  acquired_date_precision: AcquiredDatePrecision | null
+  purchase_price: string | null
+  notes: string | null
+  description: string | null
+  franchise_name: string | null
+  developer: string | null
+  publisher: string | null
+  genres: string[]
+}
+
+/** US-112/114 -- always sends the full payload (never a partial patch) --
+ * ItemController::update() only knows "field present in the request" for
+ * the metadata fields, so omitting one there would be indistinguishable
+ * from "admin cleared it" rather than "admin didn't touch it". */
+export function useUpdateItem(itemId: number) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload: UpdateItemPayload) => {
+      const { data } = await apiClient.put<ItemDetail>(`/items/${itemId}`, payload)
+
+      return data
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['items', itemId, 'detail'], data)
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+    },
+  })
+}
+
+/** US-113 -- re-fetch from IGDB. Manually-edited fields are left alone
+ * server-side (ScrapeItemMetadataJob checks manual_overrides); this just
+ * flips scrape_status back to pending and dispatches the job, then relies
+ * on useItem's polling (above) to pick up "Ready" once it's done. */
+export function useRescrapeItem(itemId: number) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post<ItemDetail>(`/items/${itemId}/rescrape`)
+
+      return data
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['items', itemId, 'detail'], data)
+    },
+  })
+}
+
+/** US-115 -- admin delete, from the edit form. */
+export function useDeleteItem() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (itemId: number) => {
+      await apiClient.delete(`/items/${itemId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+    },
   })
 }

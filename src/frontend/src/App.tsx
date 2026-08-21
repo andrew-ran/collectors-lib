@@ -3,6 +3,7 @@ import { CollectionItemViewPage } from './pages/CollectionItemViewPage'
 import { AdminLoginPage } from './pages/AdminLoginPage'
 import { AdminPage } from './pages/AdminPage'
 import { AdminAddItemPage } from './pages/AdminAddItemPage'
+import { AdminEditItemPage } from './pages/AdminEditItemPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { useSiteMeta } from './hooks/useSiteMeta'
 
@@ -19,6 +20,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/add" element={<AdminAddItemPage />} />
+        <Route path="/admin/items/:id/edit" element={<AdminEditItemPage />} />
       </Route>
     </Routes>
   )
