@@ -4,8 +4,14 @@ import { AdminLoginPage } from './pages/AdminLoginPage'
 import { AdminPage } from './pages/AdminPage'
 import { AdminAddItemPage } from './pages/AdminAddItemPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { useSiteMeta } from './hooks/useSiteMeta'
 
 function App() {
+  // US-180 -- document.title/meta description from admin settings. Once
+  // here at the app root, not per-page -- see useSiteMeta's docblock for
+  // what this does and doesn't cover.
+  useSiteMeta()
+
   return (
     <Routes>
       <Route path="/" element={<CollectionItemViewPage />} />

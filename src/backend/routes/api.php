@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CollectionController;
 use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\IgdbSearchController;
 use App\Http\Controllers\Api\ItemController;
+use App\Http\Controllers\Api\SiteSettingsController;
 use Illuminate\Support\Facades\Route;
 
 // Phase 0 sanity check -- see ROADMAP.md Phase 0 deliverable.
@@ -28,6 +29,11 @@ Route::middleware('throttle:api')->group(function () {
     // US-170/171 -- cached EUR-based rates for the currency selector.
     Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
 
+    // US-180 -- public read so the SPA can set <title>/meta description
+    // client-side; editing is admin-only below. See SiteSettingsController's
+    // docblock for what this does and doesn't cover re: US-181.
+    Route::get('/settings', [SiteSettingsController::class, 'show']);
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']); // US-102
         Route::get('/auth/me', [AuthController::class, 'me']); // US-101
@@ -38,5 +44,7 @@ Route::middleware('throttle:api')->group(function () {
 
         // US-110 -- admin-only IGDB search for the "add item" flow.
         Route::get('/search/igdb', [IgdbSearchController::class, 'search']);
+
+        Route::put('/settings', [SiteSettingsController::class, 'update']); // US-180
     });
 });
