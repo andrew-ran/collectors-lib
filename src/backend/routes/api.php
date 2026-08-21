@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CollectionController;
+use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\IgdbSearchController;
 use App\Http\Controllers\Api\ItemController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,9 @@ Route::middleware('throttle:api')->group(function () {
     Route::get('/items', [ItemController::class, 'index']);
     Route::get('/items/{item}', [ItemController::class, 'show']);
     Route::get('/collections', [CollectionController::class, 'index']);
+
+    // US-170/171 -- cached EUR-based rates for the currency selector.
+    Route::get('/exchange-rates', [ExchangeRateController::class, 'index']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']); // US-102

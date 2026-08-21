@@ -18,6 +18,21 @@ services:
       - db
       - redis
 
+  # US-172 -- runs Laravel's scheduler loop (routes/console.php), which is
+  # what actually fires ExchangeRateSyncJob monthly. Without this, scheduled
+  # jobs are defined but nothing ever triggers them -- schedule:work is
+  # Laravel's own long-running alternative to a real cron entry, a better
+  # fit for a Docker service than trying to run system cron in a container.
+  scheduler:
+    build:
+      context: ./src/backend
+    command: php artisan schedule:work
+    volumes:
+      - ./src/backend:/var/www/html
+    depends_on:
+      - db
+      - redis
+
   frontend:
     image: node:22-alpine
     working_dir: /app
