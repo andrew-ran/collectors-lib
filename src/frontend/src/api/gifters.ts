@@ -8,9 +8,8 @@ export interface Gifter {
   avatar_url: string | null
 }
 
-/** US-160/161 -- admin-only gifter list, backing GiftersAdmin.tsx. Also
- * the future gifter picker for the "mark as gifted" flow (US-162/163, not
- * built yet). */
+/** US-160/161 -- admin-only gifter list, backing GiftersAdmin.tsx. Also the
+ * gifter picker in WishlistAdminPanel's "mark as gifted" flow (US-162/163). */
 export function useGifters() {
   return useQuery({
     queryKey: ['gifters'],

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\IgdbSearchController;
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\ItemPhotoController;
 use App\Http\Controllers\Api\SiteSettingsController;
+use App\Http\Controllers\Api\WishlistDetailController;
 use Illuminate\Support\Facades\Route;
 
 // Phase 0 sanity check -- see ROADMAP.md Phase 0 deliverable.
@@ -51,6 +52,10 @@ Route::middleware('throttle:api')->group(function () {
         Route::put('/items/{item}/photos/reorder', [ItemPhotoController::class, 'reorder']);
         Route::put('/items/{item}/photos/{photo}/primary', [ItemPhotoController::class, 'setPrimary']);
         Route::delete('/items/{item}/photos/{photo}', [ItemPhotoController::class, 'destroy']);
+
+        // US-150/151 -- wishlist admin fields + mark-as-received flow.
+        Route::put('/items/{item}/wishlist-detail', [WishlistDetailController::class, 'update']);
+        Route::post('/items/{item}/mark-received', [WishlistDetailController::class, 'markReceived']);
 
         // US-110 -- admin-only IGDB search for the "add item" flow.
         Route::get('/search/igdb', [IgdbSearchController::class, 'search']);

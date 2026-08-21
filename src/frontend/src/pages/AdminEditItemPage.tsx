@@ -11,6 +11,7 @@ import {
   ADMIN_LINK,
 } from '../components/Admin/adminUi'
 import { ItemPhotoManager } from '../components/Admin/ItemPhotoManager'
+import { WishlistAdminPanel } from '../components/Admin/WishlistAdminPanel'
 import {
   useCompanyOptions,
   useFranchiseOptions,
@@ -55,8 +56,10 @@ function resolveReturnTo(from: string | undefined, afterDelete: boolean): string
  * design beyond this is still an open item, see docs/tz/NEXT_STEPS.md.
  * Genre/Franchise/Developer/Publisher autocomplete uses native <datalist>
  * against api/dictionaries.ts rather than a custom widget. Photos
- * (US-117-120, ItemPhotoManager) mutate independently of this form's
- * Save/Delete -- each tile action calls its own endpoint immediately,
+ * (US-117-120, ItemPhotoManager) and, when the item is currently in a
+ * wishlist-type collection, the wishlist fields + mark-as-received flow
+ * (US-150/151/162/163, WishlistAdminPanel) all mutate independently of this
+ * form's Save/Delete -- each action calls its own endpoint immediately,
  * same "instant admin action" pattern as CollectionsAdmin/GiftersAdmin. */
 export function AdminEditItemPage() {
   const { id } = useParams()
@@ -426,6 +429,16 @@ function EditForm({ item }: { item: ItemDetail }) {
           )}
         </div>
       </form>
+
+      {/* Outside the <form> above (nesting forms isn't valid HTML) -- its
+          own mutations, independent of Save/Delete. Gated on the item's
+          *current* saved collection, not whatever's picked (but not yet
+          saved) in the Collection dropdown above. */}
+      {collections?.some((c) => c.id === item.collection_id && c.is_wishlist) && (
+        <div className="mt-6">
+          <WishlistAdminPanel item={item} />
+        </div>
+      )}
     </div>
   )
 }

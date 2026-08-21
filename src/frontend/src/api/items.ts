@@ -259,11 +259,16 @@ export interface ItemMetadataDetail {
   manual_overrides: Record<string, boolean>
 }
 
-/** US-021/022 -- only present when the item has a gifter row set for it. */
+/** US-021/022 -- only present when the item has a gifter row set for it.
+ * `avatar_path` is a raw relative disk path (not directly usable as an <img
+ * src>) -- `avatar_url` is the resolved URL and is what the UI must render;
+ * see AcquisitionBadge, and the same avatar_path/avatar_url distinction on
+ * Gifter (api/gifters.ts). */
 export interface GifterRef {
   id: number
   name: string
   avatar_path: string | null
+  avatar_url: string | null
 }
 
 export type ConditionPreference = 'new_only' | 'used_ok' | 'cartridge_only'

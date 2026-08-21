@@ -869,8 +869,8 @@ function AcquisitionBadge({ detail }: { detail: WishlistDetailRef }) {
   let tooltip: string
 
   if (gifter) {
-    icon = gifter.avatar_path ? (
-      <img src={gifter.avatar_path} alt="" className="h-full w-full rounded-full object-cover" />
+    icon = gifter.avatar_url ? (
+      <img src={gifter.avatar_url} alt="" className="h-full w-full rounded-full object-cover" />
     ) : (
       <span className="text-base leading-none">🎁</span>
     )
