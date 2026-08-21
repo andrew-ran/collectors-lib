@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Gifter;
+use App\Services\ImageService;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Imagick;
 
 /**
  * US-160/161 -- gifter profile CRUD, admin-only (all routes wired under
@@ -16,11 +14,8 @@ use Imagick;
  * -- gifter name/avatar are only ever exposed publicly via an item's
  * wishlist_detail.gifter relation, see WishlistDetail/Item::show()).
  *
- * Avatar uploads are re-encoded to WebP via Imagick (same approach the
- * REQUIREMENTS doc specifies for item photos/covers) rather than trusting
- * the uploaded file's own format -- this also strips EXIF/anything hidden
- * in the file that isn't actual image data. The `imagick` PHP extension is
- * already installed in the backend Dockerfile.
+ * Avatar upload/resize/WebP-conversion is shared with ItemPhotoController
+ * (US-117) via ImageService -- see that class's docblock.
  */
 class GifterController extends Controller
 {
@@ -29,6 +24,8 @@ class GifterController extends Controller
     private const AVATAR_MAX_DIMENSION = 400;
 
     private const AVATAR_WEBP_QUALITY = 85;
+
+    public function __construct(private readonly ImageService $imageService) {}
 
     public function index()
     {
@@ -45,7 +42,12 @@ class GifterController extends Controller
         ]);
 
         $avatarPath = $request->hasFile('avatar')
-            ? $this->storeAvatar($request->file('avatar'))
+            ? $this->imageService->store(
+                $request->file('avatar'),
+                'gifters',
+                self::AVATAR_MAX_DIMENSION,
+                self::AVATAR_WEBP_QUALITY,
+            )
             : null;
 
         $gifter = Gifter::create([
@@ -69,7 +71,12 @@ class GifterController extends Controller
 
         if ($request->hasFile('avatar')) {
             $oldAvatarPath = $gifter->avatar_path;
-            $validated['avatar_path'] = $this->storeAvatar($request->file('avatar'));
+            $validated['avatar_path'] = $this->imageService->store(
+                $request->file('avatar'),
+                'gifters',
+                self::AVATAR_MAX_DIMENSION,
+                self::AVATAR_WEBP_QUALITY,
+            );
 
             if ($oldAvatarPath) {
                 Storage::disk('public')->delete($oldAvatarPath);
@@ -97,38 +104,5 @@ class GifterController extends Controller
         $gifter->delete();
 
         return response()->noContent();
-    }
-
-    private function storeAvatar(UploadedFile $file): string
-    {
-        $source = new Imagick($file->getRealPath());
-        // Animated GIFs load as a multi-frame Imagick object -- only the
-        // first frame is kept, an avatar has no business animating.
-        $source->setIteratorIndex(0);
-        $image = $source->getImage();
-        $source->destroy();
-
-        $image->autoOrient();
-
-        if ($image->getImageWidth() > self::AVATAR_MAX_DIMENSION || $image->getImageHeight() > self::AVATAR_MAX_DIMENSION) {
-            $image->resizeImage(
-                self::AVATAR_MAX_DIMENSION,
-                self::AVATAR_MAX_DIMENSION,
-                Imagick::FILTER_LANCZOS,
-                1,
-                true, // bestfit -- preserve aspect ratio within the box
-            );
-        }
-
-        $image->setImageFormat('webp');
-        $image->setImageCompressionQuality(self::AVATAR_WEBP_QUALITY);
-        $image->stripImage();
-
-        $path = 'gifters/'.Str::uuid()->toString().'.webp';
-        Storage::disk('public')->put($path, $image->getImagesBlob());
-
-        $image->destroy();
-
-        return $path;
     }
 }

@@ -10,6 +10,7 @@ import {
   ADMIN_LABEL,
   ADMIN_LINK,
 } from '../components/Admin/adminUi'
+import { ItemPhotoManager } from '../components/Admin/ItemPhotoManager'
 import {
   useCompanyOptions,
   useFranchiseOptions,
@@ -54,8 +55,9 @@ function resolveReturnTo(from: string | undefined, afterDelete: boolean): string
  * design beyond this is still an open item, see docs/tz/NEXT_STEPS.md.
  * Genre/Franchise/Developer/Publisher autocomplete uses native <datalist>
  * against api/dictionaries.ts rather than a custom widget. Photos
- * (US-117-120) aren't here yet -- no admin upload flow exists to test them
- * against, see docs/tz/BACKLOG.md US-012. */
+ * (US-117-120, ItemPhotoManager) mutate independently of this form's
+ * Save/Delete -- each tile action calls its own endpoint immediately,
+ * same "instant admin action" pattern as CollectionsAdmin/GiftersAdmin. */
 export function AdminEditItemPage() {
   const { id } = useParams()
   const itemId = Number(id)
@@ -193,6 +195,12 @@ function EditForm({ item }: { item: ItemDetail }) {
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 sm:flex-row">
         {/* Main column */}
         <div className={`flex-[2] space-y-4 ${ADMIN_CARD}`}>
+          <ItemPhotoManager
+            itemId={item.id}
+            igdbCoverUrl={item.igdb_cover_url}
+            photos={item.photos}
+          />
+
           <div>
             <label className={ADMIN_LABEL}>Title{edited('title')}</label>
             <input

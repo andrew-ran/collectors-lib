@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class ItemPhoto extends Model
 {
@@ -13,6 +14,11 @@ class ItemPhoto extends Model
         'sort_order',
         'is_primary',
     ];
+
+    /** US-117 -- `file_path` is a relative path on the `public` disk; the
+     * API only ever exposes the resolved URL, same convention as
+     * Gifter::avatar_url. */
+    protected $appends = ['photo_url'];
 
     protected function casts(): array
     {
@@ -25,5 +31,10 @@ class ItemPhoto extends Model
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
+    }
+
+    public function getPhotoUrlAttribute(): string
+    {
+        return Storage::disk('public')->url($this->file_path);
     }
 }

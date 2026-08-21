@@ -292,17 +292,35 @@ export interface WishlistDetailRef {
 
 export type AcquiredDatePrecision = 'day' | 'month' | 'year'
 
+/** US-117/118/119/120 -- an admin-uploaded photo. `photo_url` is the only
+ * field the frontend renders from directly; `file_path` is included because
+ * it's simply what the API serializes (ItemPhoto::$appends), not because
+ * anything here uses it. */
+export interface ItemPhotoRef {
+  id: number
+  file_path: string
+  photo_url: string
+  sort_order: number
+  is_primary: boolean
+}
+
 export interface ItemDetail {
   id: number
   title: string
   subtitle: string | null
   type: string
   cover_url: string | null
+  /** US-118 -- the cover on its own, ignoring any primary-photo override;
+   * ItemPhotoManager's permanent "IGDB cover" base tile always shows this,
+   * regardless of which uploaded photo (if any) `cover_url` currently
+   * resolves to instead. */
+  igdb_cover_url: string | null
   scrape_status: ScrapeStatus
   platform: PlatformRef | null
   genres: GenreRef[]
   metadata: ItemMetadataDetail | null
   wishlist_detail: WishlistDetailRef | null
+  photos: ItemPhotoRef[]
   // US-112/114 -- raw columns the public Item View never reads, but the
   // admin edit form does. Already present in ItemController::show()'s
   // response today (it just serializes the whole Eloquent model) -- these

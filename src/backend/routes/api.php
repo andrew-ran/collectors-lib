@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ExchangeRateController;
 use App\Http\Controllers\Api\GifterController;
 use App\Http\Controllers\Api\IgdbSearchController;
 use App\Http\Controllers\Api\ItemController;
+use App\Http\Controllers\Api\ItemPhotoController;
 use App\Http\Controllers\Api\SiteSettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,6 +45,12 @@ Route::middleware('throttle:api')->group(function () {
         Route::put('/items/{item}', [ItemController::class, 'update']);
         Route::delete('/items/{item}', [ItemController::class, 'destroy']); // US-115
         Route::post('/items/{item}/rescrape', [ItemController::class, 'rescrape']); // US-113
+
+        // US-117/118/119/120 -- admin-uploaded item photos.
+        Route::post('/items/{item}/photos', [ItemPhotoController::class, 'store']);
+        Route::put('/items/{item}/photos/reorder', [ItemPhotoController::class, 'reorder']);
+        Route::put('/items/{item}/photos/{photo}/primary', [ItemPhotoController::class, 'setPrimary']);
+        Route::delete('/items/{item}/photos/{photo}', [ItemPhotoController::class, 'destroy']);
 
         // US-110 -- admin-only IGDB search for the "add item" flow.
         Route::get('/search/igdb', [IgdbSearchController::class, 'search']);
