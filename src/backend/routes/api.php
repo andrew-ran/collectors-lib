@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CollectionController;
 use App\Http\Controllers\Api\DictionaryController;
 use App\Http\Controllers\Api\ExchangeRateController;
+use App\Http\Controllers\Api\GifterController;
 use App\Http\Controllers\Api\IgdbSearchController;
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\SiteSettingsController;
@@ -59,5 +60,11 @@ Route::middleware('throttle:api')->group(function () {
         Route::post('/collections', [CollectionController::class, 'store']);
         Route::put('/collections/{collection}', [CollectionController::class, 'update']);
         Route::delete('/collections/{collection}', [CollectionController::class, 'destroy']);
+
+        // US-160/161 -- gifter profile CRUD, admin-only (no public listing).
+        Route::get('/gifters', [GifterController::class, 'index']);
+        Route::post('/gifters', [GifterController::class, 'store']);
+        Route::post('/gifters/{gifter}', [GifterController::class, 'update']); // multipart PUT spoofing, see api/gifters.ts
+        Route::delete('/gifters/{gifter}', [GifterController::class, 'destroy']);
     });
 });
