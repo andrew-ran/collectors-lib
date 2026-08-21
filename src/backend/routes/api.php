@@ -76,7 +76,14 @@ Route::middleware('throttle:api')->group(function () {
         // US-160/161 -- gifter profile CRUD, admin-only (no public listing).
         Route::get('/gifters', [GifterController::class, 'index']);
         Route::post('/gifters', [GifterController::class, 'store']);
-        Route::post('/gifters/{gifter}', [GifterController::class, 'update']); // multipart PUT spoofing, see api/gifters.ts
+        // Registered as PUT, not POST: Laravel's _method spoofing (needed so
+        // PHP populates $_FILES on a multipart body, see api/gifters.ts)
+        // overrides the *routed* method to PUT before matching, so the real
+        // transport method being POST doesn't matter here -- only the route
+        // declaration's method does. Was wrongly Route::post() before this
+        // was caught by GifterControllerTest's avatar-replace/rename tests
+        // (405 Method Not Allowed on every real spoofed PUT).
+        Route::put('/gifters/{gifter}', [GifterController::class, 'update']);
         Route::delete('/gifters/{gifter}', [GifterController::class, 'destroy']);
     });
 });
