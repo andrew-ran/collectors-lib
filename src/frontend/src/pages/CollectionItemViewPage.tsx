@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 import { useCollections, type Collection } from '../api/collections'
 import {
@@ -678,12 +678,17 @@ const CONDITION_LABELS: Record<ConditionPreference, string> = {
  * gate is ProtectedRoute on /admin/items/:id/edit itself. */
 function AdminEditLink({ itemId }: { itemId: number }) {
   const token = useAuthStore((state) => state.token)
+  const location = useLocation()
 
   if (!token) return null
 
   return (
     <Link
       to={`/admin/items/${itemId}/edit`}
+      // AdminEditItemPage reads this back to return here (this exact
+      // collection/filters/sort/item) after Save/Delete, instead of always
+      // landing on /admin -- see resolveReturnTo() there.
+      state={{ from: `${location.pathname}${location.search}` }}
       className="text-xs text-neutral-400 underline hover:text-neutral-600"
     >
       Edit

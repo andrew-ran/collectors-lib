@@ -5,6 +5,14 @@ import { useCollections } from '../api/collections'
 import { useIgdbSearch, type IgdbSearchResult } from '../api/igdb'
 import { useCreateItem, useItemStatus, type ScrapeStatus } from '../api/items'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import {
+  ADMIN_BUTTON_PRIMARY,
+  ADMIN_BUTTON_SECONDARY,
+  ADMIN_CARD,
+  ADMIN_INPUT,
+  ADMIN_LABEL,
+  ADMIN_LINK,
+} from '../components/Admin/adminUi'
 
 const STATUS_LABEL: Record<ScrapeStatus, string> = {
   pending: 'Scraping...',
@@ -17,9 +25,9 @@ const STATUS_LABEL: Record<ScrapeStatus, string> = {
 /** US-110 -- IGDB search "add item" flow, Radarr/Sonarr-style:
  * pick a collection -> debounced search -> pick a result -> confirm
  * platform -> add. US-111's "Scraping..." -> "Ready" status is shown for
- * each item added this session. Deliberately unstyled (bare functional
- * layout) -- the design sprint only covered public-facing screens, admin
- * visual design is still open, see docs/tz/NEXT_STEPS.md. */
+ * each item added this session. Minimal Tailwind pass via
+ * components/Admin/adminUi.ts -- admin visual design beyond this is still
+ * open, see docs/tz/NEXT_STEPS.md. */
 export function AdminAddItemPage() {
   const { data: collections } = useCollections()
   // Defaults to the is_default collection without an effect -- derived
@@ -72,26 +80,27 @@ export function AdminAddItemPage() {
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: '2rem auto', padding: '0 1rem' }}>
-      <p>
-        <Link to="/admin">&larr; Back</Link>
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <p className="mb-4">
+        <Link to="/admin" className={ADMIN_LINK}>
+          &larr; Back
+        </Link>
       </p>
-      <h1>Add item (IGDB search)</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Add item (IGDB search)</h1>
 
-      <div style={{ marginBottom: '1rem' }}>
-        <label>
-          Adding to:{' '}
-          <select
-            value={collectionId ?? ''}
-            onChange={(e) => setCollectionIdOverride(Number(e.target.value))}
-          >
-            {collections?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="mb-4">
+        <label className={ADMIN_LABEL}>Adding to</label>
+        <select
+          value={collectionId ?? ''}
+          onChange={(e) => setCollectionIdOverride(Number(e.target.value))}
+          className={ADMIN_INPUT}
+        >
+          {collections?.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <input
@@ -99,13 +108,13 @@ export function AdminAddItemPage() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search a game title..."
-        style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+        className={ADMIN_INPUT}
       />
 
-      {isFetching && <p>Searching...</p>}
+      {isFetching && <p className="mt-3 text-sm text-neutral-500">Searching...</p>}
 
       {isSearchError && (
-        <p style={{ color: 'crimson' }}>
+        <p className="mt-3 text-sm text-red-600">
           Search failed
           {isAxiosError(searchError)
             ? ` (${searchError.response?.status ?? 'network error'}: ${
@@ -117,35 +126,26 @@ export function AdminAddItemPage() {
       )}
 
       {!isFetching && !isSearchError && debouncedQuery && results?.length === 0 && (
-        <p>No results.</p>
+        <p className="mt-3 text-sm text-neutral-500">No results.</p>
       )}
 
-      <ul style={{ listStyle: 'none', padding: 0 }}>
+      <ul className="mt-2 space-y-1">
         {results?.map((result) => (
           <li key={result.igdb_id}>
             <button
               onClick={() => selectResult(result)}
-              style={{
-                display: 'flex',
-                gap: '0.75rem',
-                alignItems: 'center',
-                width: '100%',
-                textAlign: 'left',
-                padding: '0.5rem',
-                margin: '0.25rem 0',
-                cursor: 'pointer',
-              }}
+              className="flex w-full items-center gap-3 rounded-lg border border-transparent p-2 text-left hover:border-neutral-200 hover:bg-neutral-50"
             >
               {result.cover_url ? (
-                <img src={result.cover_url} alt="" width={45} />
+                <img src={result.cover_url} alt="" width={45} className="rounded" />
               ) : (
-                <div style={{ width: 45, height: 64, background: '#eee' }} />
+                <div className="h-16 w-[45px] rounded bg-neutral-200" />
               )}
               <span>
-                <strong>{result.name}</strong>
+                <strong className="text-neutral-900">{result.name}</strong>
                 {result.year ? ` (${result.year})` : ''}
                 <br />
-                <small>
+                <small className="text-neutral-500">
                   {result.platforms.map((p) => p.abbreviation ?? p.name).join(', ') ||
                     'No platforms listed'}
                 </small>
@@ -156,45 +156,54 @@ export function AdminAddItemPage() {
       </ul>
 
       {selected && (
-        <div style={{ border: '1px solid #ccc', padding: '1rem', marginTop: '1rem' }}>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            {selected.cover_url && <img src={selected.cover_url} alt="" width={90} />}
+        <div className={`mt-4 space-y-3 ${ADMIN_CARD}`}>
+          <div className="flex gap-4">
+            {selected.cover_url && (
+              <img src={selected.cover_url} alt="" width={90} className="rounded" />
+            )}
             <div>
-              <strong>{selected.name}</strong>
+              <strong className="text-neutral-900">{selected.name}</strong>
               {selected.year ? ` (${selected.year})` : ''}
             </div>
           </div>
 
-          <div style={{ margin: '0.75rem 0' }}>
-            <label>
-              Platform:{' '}
-              <select
-                value={platformId ?? ''}
-                onChange={(e) => setPlatformId(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">Unknown</option>
-                {selected.platforms.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div>
+            <label className={ADMIN_LABEL}>Platform</label>
+            <select
+              value={platformId ?? ''}
+              onChange={(e) => setPlatformId(e.target.value ? Number(e.target.value) : null)}
+              className={ADMIN_INPUT}
+            >
+              <option value="">Unknown</option>
+              {selected.platforms.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <button onClick={confirmAdd} disabled={createItem.isPending}>
-            {createItem.isPending ? 'Adding...' : 'Add'}
-          </button>{' '}
-          <button onClick={() => setSelected(null)}>Cancel</button>
+          <div className="flex gap-2">
+            <button
+              onClick={confirmAdd}
+              disabled={createItem.isPending}
+              className={ADMIN_BUTTON_PRIMARY}
+            >
+              {createItem.isPending ? 'Adding...' : 'Add'}
+            </button>
+            <button onClick={() => setSelected(null)} className={ADMIN_BUTTON_SECONDARY}>
+              Cancel
+            </button>
+          </div>
 
-          {createItem.isError && <p style={{ color: 'crimson' }}>Failed to add item.</p>}
+          {createItem.isError && <p className="text-sm text-red-600">Failed to add item.</p>}
         </div>
       )}
 
       {addedItemIds.length > 0 && (
-        <div style={{ marginTop: '2rem' }}>
-          <h2>Added this session</h2>
-          <ul>
+        <div className="mt-8">
+          <h2 className="mb-2 text-lg font-semibold text-neutral-900">Added this session</h2>
+          <ul className="space-y-1 text-sm text-neutral-600">
             {addedItemIds.map((id) => (
               <AddedItemStatus key={id} itemId={id} />
             ))}
@@ -210,8 +219,7 @@ function AddedItemStatus({ itemId }: { itemId: number }) {
 
   return (
     <li>
-      {item?.title ?? `Item #${itemId}`} &mdash;{' '}
-      {item ? STATUS_LABEL[item.scrape_status] : '...'}
+      {item?.title ?? `Item #${itemId}`} &mdash; {item ? STATUS_LABEL[item.scrape_status] : '...'}
     </li>
   )
 }

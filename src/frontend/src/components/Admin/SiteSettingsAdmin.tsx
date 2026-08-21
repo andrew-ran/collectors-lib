@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useSiteSettings, useUpdateSiteSettings, type SiteSettings } from '../../api/settings'
+import { ADMIN_BUTTON_PRIMARY, ADMIN_CARD, ADMIN_INPUT, ADMIN_LABEL } from './adminUi'
 
 const DESCRIPTION_MAX = 300
 
@@ -17,7 +18,7 @@ export function SiteSettingsAdmin() {
   const { data: settings, isLoading } = useSiteSettings()
 
   if (isLoading || !settings) {
-    return <p>Loading settings...</p>
+    return <p className="mt-8 text-neutral-500">Loading settings...</p>
   }
 
   return <SiteSettingsForm settings={settings} />
@@ -35,14 +36,16 @@ function SiteSettingsForm({ settings }: { settings: SiteSettings }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginTop: '2rem' }}>
-      <h2>Site settings</h2>
-      <p style={{ color: '#666', fontSize: '0.9rem' }}>
-        Used for the browser tab title and meta description. Leave blank to use the default.
-      </p>
+    <form onSubmit={handleSubmit} className={`mt-8 space-y-4 ${ADMIN_CARD}`}>
+      <div>
+        <h2 className="text-lg font-semibold text-neutral-900">Site settings</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Used for the browser tab title and meta description. Leave blank to use the default.
+        </p>
+      </div>
 
-      <div style={{ marginBottom: '1rem' }}>
-        <label htmlFor="site_title" style={{ display: 'block', marginBottom: '0.25rem' }}>
+      <div>
+        <label htmlFor="site_title" className={ADMIN_LABEL}>
           Site title
         </label>
         <input
@@ -52,12 +55,12 @@ function SiteSettingsForm({ settings }: { settings: SiteSettings }) {
           maxLength={255}
           placeholder="Collectors Lib"
           onChange={(e) => setTitle(e.target.value)}
-          style={{ width: '100%', padding: '0.5rem' }}
+          className={ADMIN_INPUT}
         />
       </div>
 
-      <div style={{ marginBottom: '1rem' }}>
-        <label htmlFor="site_description" style={{ display: 'block', marginBottom: '0.25rem' }}>
+      <div>
+        <label htmlFor="site_description" className={ADMIN_LABEL}>
           Site description
         </label>
         <textarea
@@ -67,24 +70,22 @@ function SiteSettingsForm({ settings }: { settings: SiteSettings }) {
           rows={3}
           placeholder="The collection tracker your friends check before they buy you a gift."
           onChange={(e) => setDescription(e.target.value)}
-          style={{ width: '100%', padding: '0.5rem' }}
+          className={ADMIN_INPUT}
         />
-        <span style={{ color: '#666', fontSize: '0.8rem' }}>
+        <span className="text-sm text-neutral-500">
           {description.length}/{DESCRIPTION_MAX}
         </span>
       </div>
 
-      <button type="submit" disabled={updateSettings.isPending}>
-        {updateSettings.isPending ? 'Saving...' : 'Save'}
-      </button>
-      {updateSettings.isSuccess && (
-        <span style={{ marginLeft: '0.75rem', color: 'green' }}>Saved.</span>
-      )}
-      {updateSettings.isError && (
-        <span style={{ marginLeft: '0.75rem', color: 'crimson' }}>
-          Failed to save -- try again.
-        </span>
-      )}
+      <div className="flex items-center gap-3">
+        <button type="submit" disabled={updateSettings.isPending} className={ADMIN_BUTTON_PRIMARY}>
+          {updateSettings.isPending ? 'Saving...' : 'Save'}
+        </button>
+        {updateSettings.isSuccess && <span className="text-sm text-green-700">Saved.</span>}
+        {updateSettings.isError && (
+          <span className="text-sm text-red-600">Failed to save -- try again.</span>
+        )}
+      </div>
     </form>
   )
 }

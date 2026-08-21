@@ -2,10 +2,16 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLogin } from '../api/auth'
+import {
+  ADMIN_BUTTON_PRIMARY,
+  ADMIN_CARD,
+  ADMIN_INPUT,
+  ADMIN_LABEL,
+} from '../components/Admin/adminUi'
 
-/** US-100. Plain, unstyled form for now -- the admin screens weren't part
- * of the design sprint (only the public views were mocked up); this just
- * needs to work end-to-end against the backend. */
+/** US-100. Minimal Tailwind pass via components/Admin/adminUi.ts -- the
+ * admin screens weren't part of the design sprint (only the public views
+ * were mocked up), so this is deliberately plain, not a real design. */
 export function AdminLoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -14,44 +20,49 @@ export function AdminLoginPage() {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    login.mutate(
-      { email, password },
-      { onSuccess: () => navigate('/admin') },
-    )
+    login.mutate({ email, password }, { onSuccess: () => navigate('/admin') })
   }
 
   return (
-    <div style={{ maxWidth: 320, margin: '4rem auto' }}>
-      <h1>Admin login</h1>
-      <form onSubmit={handleSubmit}>
+    <div className="mx-auto max-w-sm px-4 py-16">
+      <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Admin login</h1>
+      <form onSubmit={handleSubmit} className={`space-y-4 ${ADMIN_CARD}`}>
         <div>
-          <label htmlFor="email">Email</label>
-          <br />
+          <label htmlFor="email" className={ADMIN_LABEL}>
+            Email
+          </label>
           <input
             id="email"
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
+            className={ADMIN_INPUT}
           />
         </div>
-        <div style={{ marginTop: 8 }}>
-          <label htmlFor="password">Password</label>
-          <br />
+        <div>
+          <label htmlFor="password" className={ADMIN_LABEL}>
+            Password
+          </label>
           <input
             id="password"
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
+            className={ADMIN_INPUT}
           />
         </div>
         {login.isError && (
-          <p role="alert" style={{ color: 'crimson' }}>
+          <p role="alert" className="text-sm text-red-600">
             Invalid email or password.
           </p>
         )}
-        <button type="submit" disabled={login.isPending} style={{ marginTop: 12 }}>
+        <button
+          type="submit"
+          disabled={login.isPending}
+          className={`w-full ${ADMIN_BUTTON_PRIMARY}`}
+        >
           {login.isPending ? 'Logging in...' : 'Log in'}
         </button>
       </form>

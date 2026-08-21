@@ -1,6 +1,15 @@
 import { useState, type FormEvent, type KeyboardEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useCollections } from '../api/collections'
+import {
+  ADMIN_BUTTON_DANGER,
+  ADMIN_BUTTON_PRIMARY,
+  ADMIN_BUTTON_SECONDARY,
+  ADMIN_CARD,
+  ADMIN_INPUT,
+  ADMIN_LABEL,
+  ADMIN_LINK,
+} from '../components/Admin/adminUi'
 import {
   useCompanyOptions,
   useFranchiseOptions,
@@ -25,14 +34,36 @@ const STATUS_LABEL: Record<ScrapeStatus, string> = {
   manual: 'Ready',
 }
 
+/** Where "Save"/"Delete" should return to: the collection view the admin
+ * came from (AdminEditLink passes it as router state), or `/admin` if this
+ * page was reached some other way (e.g. typed directly, or a future admin
+ * item list). Deleting the item first strips its `?item=` param, if any --
+ * navigating back to a URL that still points at the now-deleted item would
+ * otherwise ask CollectionItemViewPage to select something that no longer
+ * exists. */
+function resolveReturnTo(from: string | undefined, afterDelete: boolean): string {
+  if (!from) return '/admin'
+  if (!afterDelete) return from
+
+  const [path, search] = from.split('?')
+  if (!search) return from
+
+  const params = new URLSearchParams(search)
+  params.delete('item')
+  const query = params.toString()
+
+  return query ? `${path}?${query}` : path
+}
+
 /** US-112/113/114/115 -- WordPress-post-edit-style layout (main column +
- * sidebar), per REQUIREMENTS.md US-112. Deliberately unstyled/bare, same as
- * AdminAddItemPage -- admin visual design is still an open item, see
- * docs/tz/NEXT_STEPS.md. Genre/Franchise/Developer/Publisher autocomplete
- * uses native <datalist> against api/dictionaries.ts rather than a custom
- * widget, matching that "bare functional layout" elsewhere in the admin.
- * Photos (US-117-120) aren't here yet -- no admin upload flow exists to
- * test them against, see docs/tz/BACKLOG.md US-012. */
+ * sidebar), per REQUIREMENTS.md US-112. Minimal Tailwind pass (real
+ * buttons, bordered inputs, white/gray block grouping) via
+ * components/Admin/adminUi.ts -- see that file's docblock; admin visual
+ * design beyond this is still an open item, see docs/tz/NEXT_STEPS.md.
+ * Genre/Franchise/Developer/Publisher autocomplete uses native <datalist>
+ * against api/dictionaries.ts rather than a custom widget. Photos
+ * (US-117-120) aren't here yet -- no admin upload flow exists to test them
+ * against, see docs/tz/BACKLOG.md US-012. */
 export function AdminEditItemPage() {
   const { id } = useParams()
   const itemId = Number(id)
@@ -40,19 +71,21 @@ export function AdminEditItemPage() {
 
   if (isLoading) {
     return (
-      <div style={{ maxWidth: 640, margin: '2rem auto', padding: '0 1rem' }}>
-        <p>Loading...</p>
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <p className="text-neutral-500">Loading...</p>
       </div>
     )
   }
 
   if (isError || !item) {
     return (
-      <div style={{ maxWidth: 640, margin: '2rem auto', padding: '0 1rem' }}>
-        <p>
-          <Link to="/admin">&larr; Back</Link>
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <p className="mb-4">
+          <Link to="/admin" className={ADMIN_LINK}>
+            &larr; Back
+          </Link>
         </p>
-        <p>Item not found.</p>
+        <p className="text-neutral-500">Item not found.</p>
       </div>
     )
   }
@@ -69,6 +102,9 @@ export function AdminEditItemPage() {
 
 function EditForm({ item }: { item: ItemDetail }) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = (location.state as { from?: string } | null)?.from
+
   const { data: collections } = useCollections()
   const { data: platforms } = usePlatformOptions()
   const { data: genreOptions } = useGenreOptions()
@@ -122,90 +158,85 @@ function EditForm({ item }: { item: ItemDetail }) {
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
 
-    updateItem.mutate({
-      collection_id: collectionId,
-      type: item.type,
-      igdb_id: item.igdb_id,
-      custom_identifier: item.custom_identifier,
-      title,
-      subtitle: item.subtitle,
-      platform_id: platformId,
-      acquired_date: acquiredPrecision ? acquiredDate || null : null,
-      acquired_date_precision: acquiredPrecision || null,
-      purchase_price: purchasePrice || null,
-      notes: notes || null,
-      description: description || null,
-      franchise_name: franchiseName || null,
-      developer: developer || null,
-      publisher: publisher || null,
-      genres,
-    })
+    updateItem.mutate(
+      {
+        collection_id: collectionId,
+        type: item.type,
+        igdb_id: item.igdb_id,
+        custom_identifier: item.custom_identifier,
+        title,
+        subtitle: item.subtitle,
+        platform_id: platformId,
+        acquired_date: acquiredPrecision ? acquiredDate || null : null,
+        acquired_date_precision: acquiredPrecision || null,
+        purchase_price: purchasePrice || null,
+        notes: notes || null,
+        description: description || null,
+        franchise_name: franchiseName || null,
+        developer: developer || null,
+        publisher: publisher || null,
+        genres,
+      },
+      { onSuccess: () => navigate(resolveReturnTo(returnTo, false)) },
+    )
   }
 
   function handleDelete() {
     if (!window.confirm(`Delete "${item.title}"? This can't be undone.`)) return
 
-    deleteItem.mutate(item.id, { onSuccess: () => navigate('/admin') })
+    deleteItem.mutate(item.id, {
+      onSuccess: () => navigate(resolveReturnTo(returnTo, true)),
+    })
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '2rem auto', padding: '0 1rem' }}>
-      <p>
-        <Link to="/admin">&larr; Back</Link>
+    <div className="mx-auto max-w-4xl px-4 py-8">
+      <p className="mb-4">
+        <Link to={returnTo ?? '/admin'} className={ADMIN_LINK}>
+          &larr; Back
+        </Link>
       </p>
-      <h1>Edit item</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Edit item</h1>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '2rem' }}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6 sm:flex-row">
         {/* Main column */}
-        <div style={{ flex: 2, minWidth: 0 }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-              Title{edited('title')}
-            </label>
+        <div className={`flex-[2] space-y-4 ${ADMIN_CARD}`}>
+          <div>
+            <label className={ADMIN_LABEL}>Title{edited('title')}</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
               maxLength={500}
-              style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+              className={ADMIN_INPUT}
             />
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-              Description{edited('description')}
-            </label>
+          <div>
+            <label className={ADMIN_LABEL}>Description{edited('description')}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
-              style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+              className={ADMIN_INPUT}
             />
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-              Genres{edited('genres')}
-            </label>
-            <div
-              style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.4rem' }}
-            >
+          <div>
+            <label className={ADMIN_LABEL}>Genres{edited('genres')}</label>
+            <div className="mb-2 flex flex-wrap gap-1.5">
               {genres.map((name) => (
                 <span
                   key={name}
-                  style={{
-                    background: '#eee',
-                    borderRadius: 4,
-                    padding: '0.15rem 0.5rem',
-                    fontSize: '0.9rem',
-                  }}
+                  className="flex items-center gap-1 rounded-full border border-neutral-300 bg-white px-2.5 py-0.5 text-sm text-neutral-700"
                 >
-                  {name}{' '}
+                  {name}
                   <button
                     type="button"
                     onClick={() => setGenres(genres.filter((g) => g !== name))}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer' }}
+                    className="text-neutral-400 hover:text-red-600"
+                    aria-label={`Remove ${name}`}
                   >
                     &times;
                   </button>
@@ -220,7 +251,7 @@ function EditForm({ item }: { item: ItemDetail }) {
               onKeyDown={handleGenreKeyDown}
               onBlur={addGenre}
               placeholder="Type a genre, Enter to add"
-              style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+              className={ADMIN_INPUT}
             />
             <datalist id="genre-options">
               {genreOptions?.map((g) => (
@@ -229,17 +260,15 @@ function EditForm({ item }: { item: ItemDetail }) {
             </datalist>
           </div>
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-              Franchise{edited('franchise_id')}
-            </label>
+          <div>
+            <label className={ADMIN_LABEL}>Franchise{edited('franchise_id')}</label>
             <input
               type="text"
               list="franchise-options"
               value={franchiseName}
               onChange={(e) => setFranchiseName(e.target.value)}
               placeholder="None"
-              style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+              className={ADMIN_INPUT}
             />
             <datalist id="franchise-options">
               {franchiseOptions?.map((f) => (
@@ -248,29 +277,25 @@ function EditForm({ item }: { item: ItemDetail }) {
             </datalist>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <div style={{ flex: 1, marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-                Developer{edited('developer')}
-              </label>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className={ADMIN_LABEL}>Developer{edited('developer')}</label>
               <input
                 type="text"
                 list="company-options"
                 value={developer}
                 onChange={(e) => setDeveloper(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+                className={ADMIN_INPUT}
               />
             </div>
-            <div style={{ flex: 1, marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-                Publisher{edited('publisher')}
-              </label>
+            <div className="flex-1">
+              <label className={ADMIN_LABEL}>Publisher{edited('publisher')}</label>
               <input
                 type="text"
                 list="company-options"
                 value={publisher}
                 onChange={(e) => setPublisher(e.target.value)}
-                style={{ width: '100%', padding: '0.5rem', boxSizing: 'border-box' }}
+                className={ADMIN_INPUT}
               />
             </div>
             <datalist id="company-options">
@@ -282,13 +307,13 @@ function EditForm({ item }: { item: ItemDetail }) {
         </div>
 
         {/* Sidebar */}
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>Platform</label>
+        <div className={`flex-1 space-y-4 ${ADMIN_CARD}`}>
+          <div>
+            <label className={ADMIN_LABEL}>Platform</label>
             <select
               value={platformId ?? ''}
               onChange={(e) => setPlatformId(e.target.value ? Number(e.target.value) : null)}
-              style={{ width: '100%', padding: '0.4rem' }}
+              className={ADMIN_INPUT}
             >
               <option value="">Unknown</option>
               {platforms?.map((p) => (
@@ -298,14 +323,15 @@ function EditForm({ item }: { item: ItemDetail }) {
               ))}
             </select>
           </div>
-          <div style={{ marginBottom: '1rem' }}>
+
+          <div>
             {/* US-114 -- moving an item between collections is just picking
                 a different one here and saving. */}
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>Collection</label>
+            <label className={ADMIN_LABEL}>Collection</label>
             <select
               value={collectionId}
               onChange={(e) => setCollectionId(Number(e.target.value))}
-              style={{ width: '100%', padding: '0.4rem' }}
+              className={ADMIN_INPUT}
             >
               {collections?.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -314,12 +340,13 @@ function EditForm({ item }: { item: ItemDetail }) {
               ))}
             </select>
           </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>Acquired date</label>
+
+          <div>
+            <label className={ADMIN_LABEL}>Acquired date</label>
             <select
               value={acquiredPrecision}
               onChange={(e) => setAcquiredPrecision(e.target.value as AcquiredDatePrecision | '')}
-              style={{ width: '100%', padding: '0.4rem', marginBottom: '0.4rem' }}
+              className={`${ADMIN_INPUT} mb-2`}
             >
               <option value="">Unknown</option>
               <option value="day">Exact day</option>
@@ -331,57 +358,69 @@ function EditForm({ item }: { item: ItemDetail }) {
                 type="date"
                 value={acquiredDate}
                 onChange={(e) => setAcquiredDate(e.target.value)}
-                style={{ width: '100%', padding: '0.4rem', boxSizing: 'border-box' }}
+                className={ADMIN_INPUT}
               />
             )}
           </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>
-              Purchase price (EUR)
-            </label>
+
+          <div>
+            <label className={ADMIN_LABEL}>Purchase price (EUR)</label>
             <input
               type="number"
               step="0.01"
               min="0"
               value={purchasePrice}
               onChange={(e) => setPurchasePrice(e.target.value)}
-              style={{ width: '100%', padding: '0.4rem', boxSizing: 'border-box' }}
+              className={ADMIN_INPUT}
             />
           </div>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.25rem' }}>Notes</label>
+
+          <div>
+            <label className={ADMIN_LABEL}>Notes</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              style={{ width: '100%', padding: '0.4rem', boxSizing: 'border-box' }}
+              className={ADMIN_INPUT}
             />
           </div>
-          <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#f7f7f7' }}>
-            <p style={{ margin: '0 0 0.5rem' }}>
-              Scrape status: <strong>{STATUS_LABEL[item.scrape_status]}</strong>
+
+          <div className="rounded-lg border border-neutral-200 bg-white p-3">
+            <p className="mb-2 text-sm text-neutral-600">
+              Scrape status:{' '}
+              <strong className="text-neutral-900">{STATUS_LABEL[item.scrape_status]}</strong>
             </p>
             <button
               type="button"
               onClick={() => rescrapeItem.mutate()}
               disabled={!item.igdb_id || rescrapeItem.isPending}
               title={item.igdb_id ? undefined : 'This item has no igdb_id (added manually)'}
+              className={`${ADMIN_BUTTON_SECONDARY} w-full`}
             >
               {rescrapeItem.isPending ? 'Refreshing...' : 'Refresh metadata'}
             </button>
             {rescrapeItem.isError && (
-              <p style={{ color: 'crimson', margin: '0.5rem 0 0' }}>Failed to trigger re-scrape.</p>
+              <p className="mt-2 text-sm text-red-600">Failed to trigger re-scrape.</p>
             )}
           </div>
-          <button type="submit" disabled={updateItem.isPending}>
-            {updateItem.isPending ? 'Saving...' : 'Save'}
-          </button>{' '}
-          <button type="button" onClick={handleDelete} disabled={deleteItem.isPending}>
-            Delete
-          </button>
-          {updateItem.isSuccess && <p style={{ color: 'green', margin: '0.5rem 0 0' }}>Saved.</p>}
+
+          <div className="flex gap-2">
+            <button type="submit" disabled={updateItem.isPending} className={ADMIN_BUTTON_PRIMARY}>
+              {updateItem.isPending ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteItem.isPending}
+              className={ADMIN_BUTTON_DANGER}
+            >
+              Delete
+            </button>
+          </div>
+
+          {updateItem.isSuccess && <p className="text-sm text-green-700">Saved.</p>}
           {updateItem.isError && (
-            <p style={{ color: 'crimson', margin: '0.5rem 0 0' }}>Failed to save -- try again.</p>
+            <p className="text-sm text-red-600">Failed to save -- try again.</p>
           )}
         </div>
       </form>
