@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import { useCollections } from '../api/collections'
 import { useIgdbSearch, type IgdbSearchResult } from '../api/igdb'
-import { useCreateItem, useItemStatus, type ScrapeStatus } from '../api/items'
+import { SCRAPE_STATUS_LABEL, useCreateItem, useItemStatus } from '../api/items'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import {
   ADMIN_BUTTON_PRIMARY,
@@ -13,14 +13,6 @@ import {
   ADMIN_LABEL,
   ADMIN_LINK,
 } from '../components/Admin/adminUi'
-
-const STATUS_LABEL: Record<ScrapeStatus, string> = {
-  pending: 'Scraping...',
-  scraping: 'Scraping...',
-  scraped: 'Ready',
-  failed: 'Failed',
-  manual: 'Ready',
-}
 
 /** US-110 -- IGDB search "add item" flow, Radarr/Sonarr-style:
  * pick a collection -> debounced search -> pick a result -> confirm
@@ -219,7 +211,8 @@ function AddedItemStatus({ itemId }: { itemId: number }) {
 
   return (
     <li>
-      {item?.title ?? `Item #${itemId}`} &mdash; {item ? STATUS_LABEL[item.scrape_status] : '...'}
+      {item?.title ?? `Item #${itemId}`} &mdash;{' '}
+      {item ? SCRAPE_STATUS_LABEL[item.scrape_status] : '...'}
     </li>
   )
 }

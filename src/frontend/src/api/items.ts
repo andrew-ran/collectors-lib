@@ -3,6 +3,16 @@ import { apiClient } from './client'
 
 export type ScrapeStatus = 'pending' | 'scraping' | 'scraped' | 'failed' | 'manual'
 
+/** Shared across AdminAddItemPage/AdminEditItemPage/AdminItemsPage --
+ * previously duplicated per-file. */
+export const SCRAPE_STATUS_LABEL: Record<ScrapeStatus, string> = {
+  pending: 'Scraping...',
+  scraping: 'Scraping...',
+  scraped: 'Ready',
+  failed: 'Failed',
+  manual: 'Ready',
+}
+
 export interface Item {
   id: number
   collection_id: number
@@ -88,6 +98,12 @@ export interface ItemSummary {
   platform: PlatformRef | null
   genres: GenreRef[]
   wishlist_detail: WishlistSummaryRef | null
+  // Present in ItemController::index()'s response all along (it eager-loads
+  // `collection` and `scrape_status` is a plain column) -- added to the
+  // type for AdminItemsPage's collection/status columns, same "type was
+  // incomplete, not the API" situation as ItemDetail's admin fields.
+  collection: { id: number; name: string; slug: string } | null
+  scrape_status: ScrapeStatus
 }
 
 /** US-009 -- "My Collection" set; Wishlist's desire-score/price options
@@ -127,6 +143,36 @@ export function useCollectionItems(collectionId: number | null, filters: ItemFil
     },
     enabled: collectionId !== null,
     staleTime: 60 * 1000,
+  })
+}
+
+/** Admin item list (US-112 follow-up, AdminItemsPage) -- unlike
+ * useCollectionItems(), `collectionId` is optional/nullable here on
+ * purpose: omitting it means "every collection", which
+ * ItemController::index() already supports (collection_id was always an
+ * optional filter, just never exercised from the frontend without one). */
+export interface AdminItemListFilters {
+  collectionId?: number | null
+  q?: string
+}
+
+export function useAdminItemList(filters: AdminItemListFilters) {
+  const { collectionId, q } = filters
+
+  return useQuery({
+    queryKey: ['items', 'admin-list', collectionId, q],
+    queryFn: async () => {
+      const { data } = await apiClient.get<PaginatedResponse<ItemSummary>>('/items', {
+        params: {
+          collection_id: collectionId || undefined,
+          q: q || undefined,
+          per_page: 200,
+        },
+      })
+
+      return data
+    },
+    staleTime: 30 * 1000,
   })
 }
 

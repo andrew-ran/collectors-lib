@@ -66,6 +66,14 @@ class ItemController extends Controller
                     fn ($metadata) => $metadata->where('franchise_id', $franchiseId),
                 ),
             )
+            // Admin item list (US-112 follow-up) -- title search, works
+            // across every collection at once (collection_id stays optional
+            // here, same as always; omitting it already meant "all
+            // collections" before this).
+            ->when(
+                $request->filled('q'),
+                fn ($query) => $query->where('title', 'like', '%'.$request->string('q')->toString().'%'),
+            )
             // Mobile Table View (US-032/033) needs platform/genres/cover_url
             // and a compact wishlist_detail per row -- loaded here so the
             // list stays a single request instead of one per row. photos/

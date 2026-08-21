@@ -17,30 +17,22 @@ import {
   usePlatformOptions,
 } from '../api/dictionaries'
 import {
+  SCRAPE_STATUS_LABEL,
   useDeleteItem,
   useItem,
   useRescrapeItem,
   useUpdateItem,
   type AcquiredDatePrecision,
   type ItemDetail,
-  type ScrapeStatus,
 } from '../api/items'
 
-const STATUS_LABEL: Record<ScrapeStatus, string> = {
-  pending: 'Scraping...',
-  scraping: 'Scraping...',
-  scraped: 'Ready',
-  failed: 'Failed',
-  manual: 'Ready',
-}
-
-/** Where "Save"/"Delete" should return to: the collection view the admin
- * came from (AdminEditLink passes it as router state), or `/admin` if this
- * page was reached some other way (e.g. typed directly, or a future admin
- * item list). Deleting the item first strips its `?item=` param, if any --
- * navigating back to a URL that still points at the now-deleted item would
- * otherwise ask CollectionItemViewPage to select something that no longer
- * exists. */
+/** Where "Save"/"Delete" should return to: wherever the admin came from --
+ * the collection view (AdminEditLink) or AdminItemsPage (its own Edit
+ * link), both of which pass their URL as router state -- or `/admin` if
+ * this page was reached some other way (e.g. typed directly). Deleting the
+ * item first strips its `?item=` param, if any -- navigating back to a URL
+ * that still points at the now-deleted item would otherwise ask
+ * CollectionItemViewPage to select something that no longer exists. */
 function resolveReturnTo(from: string | undefined, afterDelete: boolean): string {
   if (!from) return '/admin'
   if (!afterDelete) return from
@@ -388,7 +380,9 @@ function EditForm({ item }: { item: ItemDetail }) {
           <div className="rounded-lg border border-neutral-200 bg-white p-3">
             <p className="mb-2 text-sm text-neutral-600">
               Scrape status:{' '}
-              <strong className="text-neutral-900">{STATUS_LABEL[item.scrape_status]}</strong>
+              <strong className="text-neutral-900">
+                {SCRAPE_STATUS_LABEL[item.scrape_status]}
+              </strong>
             </p>
             <button
               type="button"
