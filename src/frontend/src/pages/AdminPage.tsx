@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom'
 import { useCurrentAdmin, useLogout } from '../api/auth'
 import { SiteSettingsAdmin } from '../components/Admin/SiteSettingsAdmin'
+import { CollectionsAdmin } from '../components/Admin/CollectionsAdmin'
 import { ADMIN_BUTTON_SECONDARY, ADMIN_PAGE } from '../components/Admin/adminUi'
 
 /** Dashboard -- proves the auth loop works end-to-end and hosts the admin
- * screens built out so far (SiteSettingsAdmin/US-180, AdminItemsPage). More
- * get added here as Phase 3 backend pieces land (collections/gifters CRUD).
- * Minimal Tailwind pass via components/Admin/adminUi.ts, not a real design. */
+ * screens built out so far (SiteSettingsAdmin/US-180, CollectionsAdmin/
+ * US-130-133, AdminItemsPage). More get added here as Phase 3 backend
+ * pieces land (gifters CRUD). Minimal Tailwind pass via
+ * components/Admin/adminUi.ts, not a real design. */
 export function AdminPage() {
   const { data: admin } = useCurrentAdmin()
   const logout = useLogout()
@@ -36,6 +38,7 @@ export function AdminPage() {
         </Link>
       </p>
 
+      <CollectionsAdmin />
       <SiteSettingsAdmin />
     </div>
   )

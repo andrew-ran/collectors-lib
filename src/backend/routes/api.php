@@ -54,5 +54,10 @@ Route::middleware('throttle:api')->group(function () {
         Route::get('/companies', [DictionaryController::class, 'companies']);
 
         Route::put('/settings', [SiteSettingsController::class, 'update']); // US-180
+
+        // US-130/131/132/133 -- collection admin (index() stays public, above).
+        Route::post('/collections', [CollectionController::class, 'store']);
+        Route::put('/collections/{collection}', [CollectionController::class, 'update']);
+        Route::delete('/collections/{collection}', [CollectionController::class, 'destroy']);
     });
 });
