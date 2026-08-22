@@ -1,0 +1,14 @@
+# Illustrative example -- see SELF_HOSTING.md. Copy to `Caddyfile`, replace
+# your-domain.com, and adjust as needed. Caddy issues and renews the
+# certificate automatically via Let's Encrypt (or ZeroSSL as fallback) --
+# nothing else to configure for standard domains.
+#
+# For .ru/.su domains, Let's Encrypt has restricted issuance/renewal as of
+# mid-2026 -- see SELF_HOSTING.md's ".ru / .su domains" section for the
+# current alternative path (the Russian national CA via Gosuslugi) and
+# Caddy's docs for configuring a custom/manual ACME CA or an externally
+# issued certificate instead of the automatic default.
+
+your-domain.com {
+    reverse_proxy nginx:80
+}

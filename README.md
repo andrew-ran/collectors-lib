@@ -25,21 +25,24 @@ Inspired by EmulationStation Desktop Edition — but built for the web, for coll
 
 ## Tech Stack
 
-- **Backend:** Laravel 11 (PHP) — REST API
-- **Frontend:** React 18 + TypeScript — SPA
+- **Backend:** Laravel 13 (PHP) — REST API
+- **Frontend:** React 19 + TypeScript — SPA
 - **Database:** MySQL 8
 - **Cache/Queue:** Redis
 - **Container:** Docker + Docker Compose
 - **CI/CD:** GitHub Actions
 
-## Quick Start (Coming Soon)
+## Quick Start
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/collectors-lib
 cd collectors-lib
-cp .env.example .env
-docker compose up -d
+cp src/backend/.env.example src/backend/.env
+docker compose up -d --build
+docker compose exec app php artisan setup
 ```
+
+`php artisan setup` is an interactive wizard: it generates your app key, runs migrations, links storage, seeds default data, then asks for your (optional) IGDB credentials and creates your admin account. See [SELF_HOSTING.md](SELF_HOSTING.md) for a public deployment with HTTPS and backups.
 
 ## License
 
