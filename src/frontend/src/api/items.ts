@@ -49,7 +49,19 @@ interface CreateBookPayload {
   cover_image_url: string | null
 }
 
-type CreateItemPayload = CreateGamePayload | CreateBookPayload
+/** US-122 -- a console/peripheral add (AdminAddManualItemPage.tsx) is the
+ * simplest shape of all: no external metadata source at all (IGDB's
+ * peripheral support is too limited to be worth scraping, per
+ * REQUIREMENTS.md), just the same bare fields a game/book add already needs
+ * regardless of type. */
+interface CreateManualItemPayload {
+  collection_id: number
+  type: 'console' | 'peripheral'
+  title: string
+  platform_id: number | null
+}
+
+type CreateItemPayload = CreateGamePayload | CreateBookPayload | CreateManualItemPayload
 
 /** US-110 step 5 -- confirming a search result creates the item. */
 export function useCreateItem() {

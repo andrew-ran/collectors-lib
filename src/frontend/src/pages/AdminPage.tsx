@@ -40,6 +40,9 @@ export function AdminPage() {
         <Link to="/admin/add-book" className={`inline-block ${ADMIN_BUTTON_SECONDARY}`}>
           Add book
         </Link>
+        <Link to="/admin/add-manual" className={`inline-block ${ADMIN_BUTTON_SECONDARY}`}>
+          Add console/peripheral
+        </Link>
       </p>
 
       <CollectionsAdmin />
