@@ -37,6 +37,9 @@ export function AdminPage() {
         <Link to="/admin/add" className={`inline-block ${ADMIN_BUTTON_SECONDARY}`}>
           Add item (IGDB search)
         </Link>
+        <Link to="/admin/add-book" className={`inline-block ${ADMIN_BUTTON_SECONDARY}`}>
+          Add book
+        </Link>
       </p>
 
       <CollectionsAdmin />

@@ -205,23 +205,42 @@ class ItemController extends Controller
         }, $refs);
     }
 
+    /**
+     * US-121/122 -- a manual add (book/console/peripheral) can arrive with
+     * its metadata already known up front -- either typed by hand, or
+     * pre-filled client-side from an OpenLibrary ISBN lookup (US-121) that
+     * the admin then confirmed/edited -- unlike a game add, which only ever
+     * sends `igdb_id` and lets ScrapeItemMetadataJob fill item_metadata
+     * asynchronously afterwards. So store() writes any metadata fields it
+     * receives straight into item_metadata synchronously, in the same
+     * request -- there's nothing to poll/wait for, since no external fetch
+     * happens server-side in this path.
+     */
     public function store(Request $request)
     {
         $validated = $this->validated($request);
 
+        $metadataFields = ['description', 'author', 'publisher', 'release_year'];
+        $metadataInput = array_intersect_key($validated, array_flip($metadataFields));
+        $itemInput = array_diff_key($validated, array_flip($metadataFields));
+
         // Manually added items (no igdb_id) skip the scrape pipeline entirely.
-        $validated['scrape_status'] = ! empty($validated['igdb_id'])
+        $itemInput['scrape_status'] = ! empty($itemInput['igdb_id'])
             ? ScrapeStatus::Pending->value
             : ScrapeStatus::Manual->value;
 
-        $item = Item::create($validated);
+        $item = Item::create($itemInput);
+
+        if (! empty($metadataInput)) {
+            $item->metadata()->create($metadataInput);
+        }
 
         // Ready to run as soon as IGDB credentials exist -- see IgdbService.
         if ($item->igdb_id) {
             ScrapeItemMetadataJob::dispatch($item->id);
         }
 
-        return response()->json($item, 201);
+        return response()->json($item->load('metadata'), 201);
     }
 
     /**
@@ -324,6 +343,10 @@ class ItemController extends Controller
             'acquired_date_precision' => ['nullable', Rule::enum(AcquiredDatePrecision::class)],
             'purchase_price' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
+            // US-121 -- an OpenLibrary-derived (or hand-typed) cover; a plain
+            // `items` column already, same as IGDB's (see Item::$fillable) --
+            // no book-specific column needed.
+            'cover_image_url' => ['sometimes', 'nullable', 'string', 'max:1000'],
 
             // US-112 -- edit-form-only fields, absent from store()'s manual
             // add flow. 'sometimes' so omitting a field entirely (e.g. a
@@ -336,6 +359,12 @@ class ItemController extends Controller
             'publisher' => ['sometimes', 'nullable', 'string', 'max:500'],
             'genres' => ['sometimes', 'array'],
             'genres.*' => ['string', 'max:255'],
+
+            // US-121 -- book-only metadata fields, only ever sent by the
+            // "add book" flow (store() only, not yet part of the edit form --
+            // see docs/tz/TECH_DEBT.md).
+            'author' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'release_year' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:9999'],
         ]);
     }
 

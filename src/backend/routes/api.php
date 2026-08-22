@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\GifterController;
 use App\Http\Controllers\Api\IgdbSearchController;
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\ItemPhotoController;
+use App\Http\Controllers\Api\OpenLibrarySearchController;
 use App\Http\Controllers\Api\SiteSettingsController;
 use App\Http\Controllers\Api\WishlistDetailController;
 use Illuminate\Support\Facades\Route;
@@ -59,6 +60,9 @@ Route::middleware('throttle:api')->group(function () {
 
         // US-110 -- admin-only IGDB search for the "add item" flow.
         Route::get('/search/igdb', [IgdbSearchController::class, 'search']);
+
+        // US-121 -- admin-only OpenLibrary ISBN lookup for the "add book" flow.
+        Route::get('/search/open-library', [OpenLibrarySearchController::class, 'search']);
 
         // US-112 -- edit-form autocomplete dictionaries, see DictionaryController.
         Route::get('/platforms', [DictionaryController::class, 'platforms']);

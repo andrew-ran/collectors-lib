@@ -23,13 +23,33 @@ export interface Item {
   scrape_status: ScrapeStatus
 }
 
-interface CreateItemPayload {
+/** US-110's game-add flow only ever sends the `game`/`igdb_id` shape;
+ * US-121's book-add flow (AdminAddBookPage.tsx) sends the `book` shape
+ * instead -- `igdb_id` swapped for `custom_identifier` (the ISBN) plus
+ * whatever metadata was looked up (or typed) client-side, since there's no
+ * server-side scrape job for books to fill it in afterwards (see
+ * ItemController::store()'s docblock). Both shapes share the same endpoint;
+ * the discriminated `type` field is what the backend actually branches on. */
+interface CreateGamePayload {
   collection_id: number
   type: 'game'
   igdb_id: number
   title: string
   platform_id: number | null
 }
+
+interface CreateBookPayload {
+  collection_id: number
+  type: 'book'
+  custom_identifier: string | null
+  title: string
+  author: string | null
+  publisher: string | null
+  release_year: number | null
+  cover_image_url: string | null
+}
+
+type CreateItemPayload = CreateGamePayload | CreateBookPayload
 
 /** US-110 step 5 -- confirming a search result creates the item. */
 export function useCreateItem() {

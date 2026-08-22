@@ -16,6 +16,7 @@ class ItemMetadata extends Model
         'franchise_id',
         'developer',
         'publisher',
+        'author',
         'other_platforms',
         'sequels',
         'prequels',

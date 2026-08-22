@@ -3,6 +3,7 @@ import { CollectionItemViewPage } from './pages/CollectionItemViewPage'
 import { AdminLoginPage } from './pages/AdminLoginPage'
 import { AdminPage } from './pages/AdminPage'
 import { AdminAddItemPage } from './pages/AdminAddItemPage'
+import { AdminAddBookPage } from './pages/AdminAddBookPage'
 import { AdminEditItemPage } from './pages/AdminEditItemPage'
 import { AdminItemsPage } from './pages/AdminItemsPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -21,6 +22,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/add" element={<AdminAddItemPage />} />
+        <Route path="/admin/add-book" element={<AdminAddBookPage />} />
         <Route path="/admin/items" element={<AdminItemsPage />} />
         <Route path="/admin/items/:id/edit" element={<AdminEditItemPage />} />
       </Route>
