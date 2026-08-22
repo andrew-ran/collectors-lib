@@ -17,6 +17,8 @@ import {
   type WishlistDetailRef,
 } from '../api/items'
 import { Dropdown, DropdownItem } from '../components/Dropdown'
+import { PhotoSlider } from '../components/PhotoGallery'
+import { buildGalleryImages } from '../components/galleryImages'
 import { CurrencyProvider } from '../hooks/CurrencyProvider'
 import { CURRENCIES, CURRENCY_META, useCurrency } from '../hooks/currency'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -75,10 +77,14 @@ function toIntOrNull(value: string | null): number | null {
  * fly via useCurrency()'s cached /api/exchange-rates -- prices are always
  * stored in EUR, converted+rounded per currency (see hooks/currency.ts).
  *
+ * And US-012: the cover image area (PhotoSlider/Lightbox, components/
+ * PhotoGallery.tsx) becomes a hover/drag-preview slider once an item has
+ * more than one image (IGDB cover + any admin-uploaded photos), with a
+ * click-to-open Lightbox (looping keyboard/arrow nav, centered thumbnail
+ * strip). A single-image item just shows that one image, same as before.
+ *
  * Deliberately scoped down for this pass -- explicitly NOT included yet
  * (see docs/tz/BACKLOG.md Phase 2):
- * - US-012 photo slider/lightbox -- no admin-uploaded photos exist yet,
- *   just the single primary cover image
  * - Wishlist's Most/Least-wanted and Price sort options (US-009) -- the
  *   fields exist now, but the sort UI itself isn't wired up in this pass,
  *   so US-032's table columns for those two sorts aren't reachable yet
@@ -715,13 +721,7 @@ function ItemCard({ item, isWishlist }: { item: ItemDetail; isWishlist: boolean 
       <AdminEditLink itemId={item.id} />
 
       <div className="relative aspect-[3/4] w-full shrink-0 bg-neutral-100 sm:w-64">
-        {item.cover_url ? (
-          <img src={item.cover_url} alt={item.title} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
-            No cover
-          </div>
-        )}
+        <PhotoSlider images={buildGalleryImages(item)} alt={item.title} />
 
         {showPriorityBadge && wishlist && (
           <PriorityBadge
@@ -1325,13 +1325,7 @@ function MobileItemCard({
       <AdminEditLink itemId={item.id} />
 
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-neutral-100">
-        {item.cover_url ? (
-          <img src={item.cover_url} alt={item.title} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
-            No cover
-          </div>
-        )}
+        <PhotoSlider images={buildGalleryImages(item)} alt={item.title} />
         {showPriorityBadge && wishlist && (
           <PriorityBadge
             priority={wishlist.priority as Priority}
