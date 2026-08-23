@@ -29,6 +29,13 @@
 #   actually need to share (admin-uploaded covers/photos/avatars), mounted
 #   directly at the path each side expects rather than relying on Laravel's
 #   storage:link symlink (which only matters for `app`'s own filesystem).
+# - app/queue/scheduler bind-mount src/backend/.env directly rather than
+#   relying on it being baked into the image -- CI builds `app` from a clean
+#   `git checkout` (see .github/workflows/deploy.yml), which never has a
+#   real .env (it's gitignored on purpose). Baking real secrets into an
+#   image that gets pushed to a *public* GHCR package would leak them to
+#   anyone who pulls it -- mounting at runtime is the only safe option here,
+#   not just a workaround.
 #
 # DB_PASSWORD/DB_ROOT_PASSWORD below are read from a `.env` file in this same
 # directory (Docker Compose's own variable substitution, separate from
@@ -42,6 +49,7 @@ services:
     restart: unless-stopped
     volumes:
       - storage_public:/var/www/html/storage/app/public
+      - ./src/backend/.env:/var/www/html/.env:ro
     depends_on:
       - db
       - redis
@@ -52,6 +60,7 @@ services:
     restart: unless-stopped
     volumes:
       - storage_public:/var/www/html/storage/app/public
+      - ./src/backend/.env:/var/www/html/.env:ro
     depends_on:
       - db
       - redis
@@ -62,6 +71,7 @@ services:
     restart: unless-stopped
     volumes:
       - storage_public:/var/www/html/storage/app/public
+      - ./src/backend/.env:/var/www/html/.env:ro
     depends_on:
       - db
       - redis

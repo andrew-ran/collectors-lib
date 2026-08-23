@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `.github/workflows/deploy.yml` now builds `app`/`web` for both `linux/amd64` and `linux/arm64` (via `docker/setup-qemu-action` + `docker/setup-buildx-action`) -- the first run only produced `amd64` images (GitHub runners' native arch), which the arm64 VPS could then only run under QEMU emulation rather than natively.
 - `src/backend/Dockerfile`'s `composer install` now passes `--no-dev` -- the production image was installing Pest/PHPUnit/fakerphp/mockery/etc. for no reason (never used at runtime, confirmed no seeder touches Faker), which also means one fewer thing that can fail to download during a CI build.
+- `docker-compose.prod.example.yml`: `app`/`queue`/`scheduler` now bind-mount `src/backend/.env` at runtime instead of relying on it being baked into the image. CI builds `app` from a clean `git checkout`, which never has a real `.env` (gitignored on purpose) -- the first CI-built deploy had `queue` crash-looping (fell back to a nonexistent SQLite default) because of exactly this. Baking real secrets into an image pushed to a *public* GHCR package would leak them to anyone who pulls it anyway, so mounting at runtime isn't just the fix, it's the only safe option.
 
 ## [1.0.0] - 2026-08-22
 
