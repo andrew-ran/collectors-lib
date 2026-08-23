@@ -256,7 +256,7 @@ class ItemController extends Controller
     {
         $validated = $this->validated($request);
 
-        $metadataFields = ['description', 'franchise_name', 'developer', 'publisher', 'genres'];
+        $metadataFields = ['description', 'franchise_name', 'developer', 'publisher', 'genres', 'author', 'release_year'];
         $metadataInput = array_intersect_key($validated, array_flip($metadataFields));
         $itemInput = array_diff_key($validated, array_flip($metadataFields));
 
@@ -412,6 +412,16 @@ class ItemController extends Controller
             $metadata->publisher = $input['publisher'];
             $metadata->manual_overrides = [...($metadata->manual_overrides ?? []), 'publisher' => true];
             $this->rememberCompany($input['publisher']);
+        }
+
+        if (array_key_exists('author', $input) && $input['author'] !== $metadata->author) {
+            $metadata->author = $input['author'];
+            $metadata->manual_overrides = [...($metadata->manual_overrides ?? []), 'author' => true];
+        }
+
+        if (array_key_exists('release_year', $input) && $input['release_year'] !== $metadata->release_year) {
+            $metadata->release_year = $input['release_year'];
+            $metadata->manual_overrides = [...($metadata->manual_overrides ?? []), 'release_year' => true];
         }
 
         if (array_key_exists('genres', $input)) {

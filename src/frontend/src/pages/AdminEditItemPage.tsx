@@ -35,7 +35,11 @@ import { resolveReturnTo } from './resolveReturnTo'
  * components/Admin/adminUi.ts -- see that file's docblock; admin visual
  * design beyond this is still an open item, see docs/tz/NEXT_STEPS.md.
  * Genre/Franchise/Developer/Publisher autocomplete uses native <datalist>
- * against api/dictionaries.ts rather than a custom widget. Photos
+ * against api/dictionaries.ts rather than a custom widget. For a book
+ * (item.type === 'book'), the main column swaps Genres/Franchise/Developer
+ * for Author/Release year instead (Publisher applies to both) -- this was a
+ * known gap, see docs/tz/TECH_DEBT.md's "book's author isn't editable" entry
+ * for why it wasn't there from the start. Photos
  * (US-117-120, ItemPhotoManager) and, when the item is currently in a
  * wishlist-type collection, the wishlist fields + mark-as-received flow
  * (US-150/151/162/163, WishlistAdminPanel) all mutate independently of this
@@ -102,6 +106,9 @@ function EditForm({ item }: { item: ItemDetail }) {
   const [publisher, setPublisher] = useState(item.metadata?.publisher ?? '')
   const [genres, setGenres] = useState<string[]>(item.genres.map((g) => g.name))
   const [genreInput, setGenreInput] = useState('')
+  const isBook = item.type === 'book'
+  const [author, setAuthor] = useState(item.metadata?.author ?? '')
+  const [releaseYear, setReleaseYear] = useState(item.metadata?.release_year ?? '')
 
   const [collectionId, setCollectionId] = useState(item.collection_id)
   const [platformId, setPlatformId] = useState<number | null>(item.platform_id)
@@ -153,6 +160,8 @@ function EditForm({ item }: { item: ItemDetail }) {
         developer: developer || null,
         publisher: publisher || null,
         genres,
+        author: isBook ? author || null : null,
+        release_year: isBook && releaseYear ? Number(releaseYear) : null,
       },
       { onSuccess: () => navigate(resolveReturnTo(returnTo, false)) },
     )
@@ -206,71 +215,105 @@ function EditForm({ item }: { item: ItemDetail }) {
             />
           </div>
 
-          <div>
-            <label className={ADMIN_LABEL}>Genres{edited('genres')}</label>
-            <div className="mb-2 flex flex-wrap gap-1.5">
-              {genres.map((name) => (
-                <span
-                  key={name}
-                  className="flex items-center gap-1 rounded-full border border-neutral-300 bg-white px-2.5 py-0.5 text-sm text-neutral-700"
-                >
-                  {name}
-                  <button
-                    type="button"
-                    onClick={() => setGenres(genres.filter((g) => g !== name))}
-                    className="text-neutral-400 hover:text-red-600"
-                    aria-label={`Remove ${name}`}
-                  >
-                    &times;
-                  </button>
-                </span>
-              ))}
-            </div>
-            <input
-              type="text"
-              list="genre-options"
-              value={genreInput}
-              onChange={(e) => setGenreInput(e.target.value)}
-              onKeyDown={handleGenreKeyDown}
-              onBlur={addGenre}
-              placeholder="Type a genre, Enter to add"
-              className={ADMIN_INPUT}
-            />
-            <datalist id="genre-options">
-              {genreOptions?.map((g) => (
-                <option key={g.id} value={g.name} />
-              ))}
-            </datalist>
-          </div>
+          {/* Genres/Franchise/Developer only apply to games -- a book has
+              Author instead (see docs/tz/TECH_DEBT.md's now-resolved note
+              on this). Publisher applies to both, so it's shared below. */}
+          {!isBook && (
+            <>
+              <div>
+                <label className={ADMIN_LABEL}>Genres{edited('genres')}</label>
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {genres.map((name) => (
+                    <span
+                      key={name}
+                      className="flex items-center gap-1 rounded-full border border-neutral-300 bg-white px-2.5 py-0.5 text-sm text-neutral-700"
+                    >
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() => setGenres(genres.filter((g) => g !== name))}
+                        className="text-neutral-400 hover:text-red-600"
+                        aria-label={`Remove ${name}`}
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  list="genre-options"
+                  value={genreInput}
+                  onChange={(e) => setGenreInput(e.target.value)}
+                  onKeyDown={handleGenreKeyDown}
+                  onBlur={addGenre}
+                  placeholder="Type a genre, Enter to add"
+                  className={ADMIN_INPUT}
+                />
+                <datalist id="genre-options">
+                  {genreOptions?.map((g) => (
+                    <option key={g.id} value={g.name} />
+                  ))}
+                </datalist>
+              </div>
 
-          <div>
-            <label className={ADMIN_LABEL}>Franchise{edited('franchise_id')}</label>
-            <input
-              type="text"
-              list="franchise-options"
-              value={franchiseName}
-              onChange={(e) => setFranchiseName(e.target.value)}
-              placeholder="None"
-              className={ADMIN_INPUT}
-            />
-            <datalist id="franchise-options">
-              {franchiseOptions?.map((f) => (
-                <option key={f.id} value={f.name} />
-              ))}
-            </datalist>
-          </div>
+              <div>
+                <label className={ADMIN_LABEL}>Franchise{edited('franchise_id')}</label>
+                <input
+                  type="text"
+                  list="franchise-options"
+                  value={franchiseName}
+                  onChange={(e) => setFranchiseName(e.target.value)}
+                  placeholder="None"
+                  className={ADMIN_INPUT}
+                />
+                <datalist id="franchise-options">
+                  {franchiseOptions?.map((f) => (
+                    <option key={f.id} value={f.name} />
+                  ))}
+                </datalist>
+              </div>
+            </>
+          )}
+
+          {isBook && (
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className={ADMIN_LABEL}>Author{edited('author')}</label>
+                <input
+                  type="text"
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  className={ADMIN_INPUT}
+                />
+              </div>
+              <div className="flex-1">
+                <label className={ADMIN_LABEL}>Release year{edited('release_year')}</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={9999}
+                  value={releaseYear}
+                  onChange={(e) => setReleaseYear(e.target.value)}
+                  className={ADMIN_INPUT}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-4">
-            <div className="flex-1">
-              <label className={ADMIN_LABEL}>Developer{edited('developer')}</label>
-              <input
-                type="text"
-                list="company-options"
-                value={developer}
-                onChange={(e) => setDeveloper(e.target.value)}
-                className={ADMIN_INPUT}
-              />
-            </div>
+            {!isBook && (
+              <div className="flex-1">
+                <label className={ADMIN_LABEL}>Developer{edited('developer')}</label>
+                <input
+                  type="text"
+                  list="company-options"
+                  value={developer}
+                  onChange={(e) => setDeveloper(e.target.value)}
+                  className={ADMIN_INPUT}
+                />
+              </div>
+            )}
             <div className="flex-1">
               <label className={ADMIN_LABEL}>Publisher{edited('publisher')}</label>
               <input

@@ -275,6 +275,8 @@ export interface ItemMetadataDetail {
   franchise: FranchiseRef | null
   developer: string | null
   publisher: string | null
+  /** US-121 -- book-only; always null for a game/console/peripheral. */
+  author: string | null
   other_platforms: IgdbRef[]
   sequels: RelatedGameRef[]
   prequels: RelatedGameRef[]
@@ -419,6 +421,11 @@ export interface UpdateItemPayload {
   developer: string | null
   publisher: string | null
   genres: string[]
+  /** US-121 tech debt fix -- book-only, sent as null/omitted-equivalent for
+   * a game/console/peripheral (AdminEditItemPage only renders these fields
+   * for item.type === 'book'). */
+  author: string | null
+  release_year: number | null
 }
 
 /** US-112/114 -- always sends the full payload (never a partial patch) --
