@@ -18,3 +18,8 @@ requests/http-client.private.env.json
 # .gitignore, and git respects nested .gitignore files automatically --
 # vendor/, node_modules/, .env, etc. are already covered there, no need
 # to duplicate them here.
+
+# Docker Compose's own .env at the repo root (DB_PASSWORD/DB_ROOT_PASSWORD
+# variable substitution for docker-compose.prod.yml) -- a separate file from
+# src/backend/.env, and NOT covered by either nested .gitignore above.
+/.env

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Root-level `.gitignore` now covers `/.env` (Docker Compose's own env file for `docker-compose.prod.yml`'s `DB_PASSWORD`/`DB_ROOT_PASSWORD` substitution) -- previously uncovered by either nested `.gitignore` (`src/backend`, `src/frontend`), which only ignore their own `.env` files. Never actually committed, caught during a post-launch security review.
+
+### Changed
+- `README.md` refreshed for the actual v1.0.0 feature set: removed the EmulationStation Desktop Edition inspiration line, broadened the feature list (books/consoles/peripherals, photo galleries, currency conversion, mobile view, setup wizard), fixed the `git clone` URL (was a `YOUR_USERNAME` placeholder), and updated the status line to link the live deployment.
+
 ## [1.0.0] - 2026-08-22
 
 ### Added
