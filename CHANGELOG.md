@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `.github/workflows/deploy.yml`: builds `app`/`web` images on GitHub's runners, pushes to GHCR, then deploys over SSH (`git pull` + `docker compose pull` + `up -d`) on push to `master`. Keeps build load off the VPS entirely -- see `SELF_HOSTING.md`'s "Automatic deploys (CI/CD)" section for the required secrets and why this is safe to keep in a public repo.
 - `docker/web.Dockerfile`: multi-stage build producing a single image with the compiled React SPA + production nginx config baked in.
+- `docker/nginx.prod.conf` (committed for real, not just as `.example`): needed because the CI build step bakes this file into the `web` image directly from the repo -- unlike `Caddyfile`/`docker-compose.prod.yml`, it can't be created locally on the server after the fact. Contains only the domain and internal routing, nothing sensitive.
 
 ## [1.0.0] - 2026-08-22
 
