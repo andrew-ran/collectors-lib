@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docker/web.Dockerfile`: multi-stage build producing a single image with the compiled React SPA + production nginx config baked in.
 - `docker/nginx.prod.conf` (committed for real, not just as `.example`): needed because the CI build step bakes this file into the `web` image directly from the repo -- unlike `Caddyfile`/`docker-compose.prod.yml`, it can't be created locally on the server after the fact. Contains only the domain and internal routing, nothing sensitive.
 
+### Fixed
+- `.github/workflows/deploy.yml` now builds `app`/`web` for both `linux/amd64` and `linux/arm64` (via `docker/setup-qemu-action` + `docker/setup-buildx-action`) -- the first run only produced `amd64` images (GitHub runners' native arch), which the arm64 VPS could then only run under QEMU emulation rather than natively.
+
 ## [1.0.0] - 2026-08-22
 
 ### Added
