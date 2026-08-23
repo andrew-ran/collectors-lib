@@ -31,7 +31,14 @@ WORKDIR /var/www/html
 
 COPY . .
 
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader \
+# --no-dev: this image is what actually runs in production (see
+# .github/workflows/deploy.yml) -- require-dev packages (Pest, fakerphp/faker,
+# mockery, etc.) have no business being in it. Doesn't affect local dev via
+# docker-compose.yml: that setup bind-mounts src/backend over this image's
+# vendor/ anyway, and dev dependencies get installed separately by running
+# `composer install` (no --no-dev) directly against the bind-mounted source,
+# same as it already needs to be after a fresh clone (see SELF_HOSTING.md).
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev \
     && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 EXPOSE 9000

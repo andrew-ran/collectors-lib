@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `.github/workflows/deploy.yml` now builds `app`/`web` for both `linux/amd64` and `linux/arm64` (via `docker/setup-qemu-action` + `docker/setup-buildx-action`) -- the first run only produced `amd64` images (GitHub runners' native arch), which the arm64 VPS could then only run under QEMU emulation rather than natively.
+- `src/backend/Dockerfile`'s `composer install` now passes `--no-dev` -- the production image was installing Pest/PHPUnit/fakerphp/mockery/etc. for no reason (never used at runtime, confirmed no seeder touches Faker), which also means one fewer thing that can fail to download during a CI build.
 
 ## [1.0.0] - 2026-08-22
 
