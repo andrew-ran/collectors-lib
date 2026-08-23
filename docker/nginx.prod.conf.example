@@ -1,9 +1,9 @@
 # Illustrative production nginx config -- see SELF_HOSTING.md and
-# docker-compose.prod.example.yml. Serves the built React SPA (from
-# `frontend-build`'s `dist/` output) as static files instead of proxying to
-# Vite's dev server, and routes /api, /up, and /storage (admin-uploaded
-# covers/photos/gifter avatars, via `php artisan storage:link`) to Laravel,
-# same as the dev config (nginx.conf) does for /api and /up.
+# docker-compose.prod.example.yml. Baked into the `web` image (see
+# docker/web.Dockerfile) alongside the built React SPA, instead of being
+# mounted from the host -- this image is built once by CI and just pulled
+# on the VPS, so it can't rely on the backend's source tree being present
+# on this container's filesystem at all (unlike the old dev-mounted setup).
 #
 # Not tested end-to-end in this project's sandbox -- verify it serves your
 # actual build correctly before relying on it.
@@ -13,25 +13,29 @@ server {
     server_name your-domain.com;
     client_max_body_size 20m;
 
-    # Laravel's public/ dir -- needed for the PHP entry point below and for
-    # public/storage (the storage:link symlink target) to resolve.
+    # SCRIPT_FILENAME below is resolved by PHP-FPM on the `app` container's
+    # own filesystem, not this one -- nginx doesn't need Laravel's source
+    # tree locally for this to work, it just needs the path string to match
+    # where `app`'s Dockerfile actually puts public/index.php.
     location ~ \.php$ {
-        root /var/www/html/public;
         fastcgi_pass app:9000;
         fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME /var/www/html/public$fastcgi_script_name;
         include fastcgi_params;
     }
 
     location ~ ^/(api|up) {
-        root /var/www/html/public;
         try_files $uri /index.php?$query_string;
     }
 
-    # Admin-uploaded covers/photos/avatars -- see docker-compose.prod.example.yml's
-    # comment on the storage:link symlink.
+    # Admin-uploaded covers/photos/avatars. Unlike the routes above, this one
+    # genuinely serves files from disk (no PHP fallback) -- backed by the
+    # `storage_public` named volume, shared with `app`/`queue`/`scheduler`
+    # (see docker-compose.prod.example.yml), mounted directly at this path
+    # rather than relying on Laravel's storage:link symlink (which only
+    # matters for the app container's own filesystem, not this one).
     location /storage/ {
-        root /var/www/html/public;
+        alias /var/www/storage-public/;
         try_files $uri =404;
     }
 

@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `README.md` refreshed for the actual v1.0.0 feature set: removed the EmulationStation Desktop Edition inspiration line, broadened the feature list (books/consoles/peripherals, photo galleries, currency conversion, mobile view, setup wizard), fixed the `git clone` URL (was a `YOUR_USERNAME` placeholder), and updated the status line to link the live deployment.
+- `docker-compose.prod.example.yml`/`Caddyfile.example`/`docker/nginx.prod.conf.example` reworked around CI-built images instead of building locally: `app`/`queue`/`scheduler` pull a pre-built image rather than `build:`-ing one; the old one-shot `frontend-build` container + shared `frontend_dist` volume is gone, replaced by a `web` service (nginx + the built React SPA baked in by CI, see `docker/web.Dockerfile`) with a `storage_public` named volume replacing the old backend-source-tree bind-mount into nginx.
+
+### Added
+- `.github/workflows/deploy.yml`: builds `app`/`web` images on GitHub's runners, pushes to GHCR, then deploys over SSH (`git pull` + `docker compose pull` + `up -d`) on push to `master`. Keeps build load off the VPS entirely -- see `SELF_HOSTING.md`'s "Automatic deploys (CI/CD)" section for the required secrets and why this is safe to keep in a public repo.
+- `docker/web.Dockerfile`: multi-stage build producing a single image with the compiled React SPA + production nginx config baked in.
 
 ## [1.0.0] - 2026-08-22
 

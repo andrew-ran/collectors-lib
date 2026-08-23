@@ -30,13 +30,21 @@ Plain HTTP is fine here — this mode is for trying the app out on your own mach
 
 For a public deployment, you need to:
 
-1. **Build a production frontend bundle** and serve it as static files (rather than proxying to Vite's dev server). A proper production Docker image for the frontend is still open work on this project's own backlog. Until that lands, a public deployment means running `npm run build` in `src/frontend` yourself and serving the resulting `dist/` folder through nginx (or Caddy directly) instead of `docker-compose.yml`'s dev `frontend` service.
+1. **Build production images instead of running dev containers.** `docker/web.Dockerfile` builds the React SPA and bakes it into an nginx image with a production nginx config; the existing backend `Dockerfile` (already used by `app`/`queue`/`scheduler`) works as-is. Either build these yourself on the server, or (recommended, especially on a small VPS) let CI build them — see "Automatic deploys (CI/CD)" below.
 2. **Put a reverse proxy in front for HTTPS.** Caddy is the easiest default — automatic certificate issuance and renewal, no separate certbot setup. Traefik is a solid alternative if you're already using it elsewhere.
 
-   This repo includes a worked (but not live-tested) example for Caddy: `docker-compose.prod.example.yml`, `Caddyfile.example`, and `docker/nginx.prod.conf.example` together show `caddy` terminating HTTPS and proxying to `nginx`, which in turn serves the built SPA and routes `/api`/`/up`/`/storage` to Laravel. Copy whichever pieces you need, rename the `.example` files, fill in your real domain, and test the result yourself before relying on it — none of this has been run against a real domain/certificate issuance while writing this guide.
+   This repo includes a worked (but not live-tested against your exact setup) example for Caddy: `docker-compose.prod.example.yml`, `Caddyfile.example`, and `docker/nginx.prod.conf.example` together show `caddy` terminating HTTPS and proxying to `web` (the built SPA + nginx image), which in turn routes `/api`/`/up`/`/storage` to `app`. Copy whichever pieces you need, rename the `.example` files, fill in your real domain and image names, and test the result yourself before relying on it.
 
 3. **Don't publish `db`/`redis` ports to the host** in a public deployment — they're only exposed in `docker-compose.yml` for local debugging convenience. Remove those `ports:` entries (or override them to empty) once you're not connecting to them directly from your host machine anymore.
 4. **Change the default database passwords** (`DB_PASSWORD`/`MYSQL_ROOT_PASSWORD` in `.env` and `docker-compose.yml`'s `db` service) — the checked-in defaults (`secret`) are fine for local dev only.
+
+### Automatic deploys (CI/CD)
+
+`.github/workflows/deploy.yml` builds the `app` and `web` images on GitHub's own runners, pushes them to GHCR, then SSHes into your server to `docker compose pull` + `up -d`. Your server never runs `composer install`/`npm install`/`vite build` itself — worth having on a resource-constrained VPS, where running those steps locally can cause real slowdowns or hangs.
+
+It only runs on `push` to `master`, i.e. only when the repo owner pushes — GitHub doesn't hand repository secrets to a workflow triggered from a fork's pull request, so this is safe to keep committed even though the repo (and this workflow file) is public. Anyone self-hosting their own copy needs to point their own `DEPLOY_HOST`/`DEPLOY_USER`/`DEPLOY_SSH_KEY` secrets at their own server for it to do anything — it's inert otherwise.
+
+To set it up: add those three secrets under the repo's Settings → Secrets and variables → Actions (a dedicated deploy SSH keypair with its public half in the server user's `~/.ssh/authorized_keys` is safer than reusing your own personal key), and after the first successful run, set both pushed GHCR packages' visibility to Public so the server can pull them without its own registry login.
 
 ### `.ru` / `.su` domains
 

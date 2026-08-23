@@ -10,5 +10,5 @@
 # issued certificate instead of the automatic default.
 
 your-domain.com {
-    reverse_proxy nginx:80
+    reverse_proxy web:80
 }

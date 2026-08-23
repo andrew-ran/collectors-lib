@@ -1,0 +1,84 @@
+# Builds the `app` (Laravel/PHP-FPM) and `web` (nginx + built React SPA)
+# images on GitHub's runners, pushes them to GHCR, then SSHes into the VPS
+# to pull and restart. The VPS itself never runs `composer install`/
+# `npm install`/`vite build` -- see docker-compose.prod.example.yml and
+# docker/web.Dockerfile for why that matters on a small (2 vCPU / 1GB RAM)
+# box.
+#
+# Only runs on push to `master` -- i.e. only when the repo owner pushes.
+# GitHub does not expose repository secrets to workflows triggered from a
+# fork's pull_request, so a fork of this repo (or a PR from one) can't use
+# these secrets to deploy to this project's own server. Anyone self-hosting
+# their own copy needs their own DEPLOY_HOST/DEPLOY_USER/DEPLOY_SSH_KEY
+# secrets pointed at their own server for this workflow to do anything.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   DEPLOY_HOST     -- server IP or hostname
+#   DEPLOY_USER     -- SSH user (a dedicated deploy user is safer than reusing
+#                      your own login -- see SELF_HOSTING.md)
+#   DEPLOY_SSH_KEY  -- private half of a keypair whose public half is in that
+#                      user's ~/.ssh/authorized_keys on the server
+#
+# GITHUB_TOKEN (built in, no setup needed) authenticates the image push to
+# GHCR. After the first successful run, go to the pushed packages' settings
+# on GitHub and set their visibility to Public, so the server can `docker
+# compose pull` without needing its own registry login.
+
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: {}
+
+env:
+  IMAGE_APP: ghcr.io/${{ github.repository_owner }}/collectors-lib-app
+  IMAGE_WEB: ghcr.io/${{ github.repository_owner }}/collectors-lib-web
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/backend
+          push: true
+          tags: ${{ env.IMAGE_APP }}:latest
+
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/web.Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_WEB }}:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull and restart on the server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ~/collectors-lib
+            git pull
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
