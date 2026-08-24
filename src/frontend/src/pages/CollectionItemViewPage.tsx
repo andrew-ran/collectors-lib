@@ -19,7 +19,6 @@ import {
 import { Dropdown, DropdownItem } from '../components/Dropdown'
 import { PhotoSlider } from '../components/PhotoGallery'
 import { buildGalleryImages } from '../components/galleryImages'
-import { CurrencyProvider } from '../hooks/CurrencyProvider'
 import { CURRENCIES, CURRENCY_META, useCurrency } from '../hooks/currency'
 import { useIsMobile } from '../hooks/useIsMobile'
 
@@ -152,7 +151,10 @@ export function CollectionItemViewPage() {
   }
 
   return (
-    <CurrencyProvider>
+    // US-170 -- CurrencyProvider now lives at the app root (App.tsx), shared
+    // with the admin screens; this page just consumes useCurrency()/
+    // CurrencySelector as before.
+    <>
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col items-center gap-6 px-4 py-10">
         {/* US-034 -- collection name/switcher is never sticky, on mobile or
             desktop. Wrapped in its own elevated stacking context (z-30) so
@@ -242,7 +244,7 @@ export function CollectionItemViewPage() {
 
         {isMobile && <ScrollToTopButton />}
       </div>
-    </CurrencyProvider>
+    </>
   )
 }
 
@@ -972,10 +974,23 @@ function RelatedTagRow({
   const visible = expanded ? full : compact
   const hasMore = !expanded && full.length > compact.length
 
+  // Belt-and-suspenders on top of pickNearestOrOwned's curation above: even
+  // the "compact" set can still run long once every already-owned game in a
+  // sprawling franchise gets included regardless of distance (see that
+  // function's docblock). Capping the row itself at 2 lines is the actual
+  // layout-level fix docs/tz/TECH_DEBT.md's "Related tag row can still
+  // stretch the card" note asked for -- ported from the Claude Design
+  // handoff (docs/design/CLAUDE_DESIGN_BRIEF.md), which targeted this exact
+  // card. Only applied while collapsed; "Show more" removes the cap along
+  // with swapping in the full list.
   return (
     <div className="text-sm">
       <span className="text-neutral-500">Related: </span>
-      <span className="inline-flex flex-wrap items-center gap-1.5 align-middle">
+      <span
+        className={`inline-flex flex-wrap items-center gap-1.5 align-middle ${
+          expanded ? '' : 'max-h-12 overflow-hidden'
+        }`}
+      >
         {visible.map((game, i) => (
           <RelatedTag key={`${game.status}-${game.id}-${i}`} game={game} />
         ))}
