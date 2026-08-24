@@ -1,1 +1,36 @@
+/* Must precede @import 'tailwindcss' below -- CSS requires all @import
+   rules to come before any other rule, and Tailwind's own @import expands
+   into real rules during the build, so this has to be first. */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
 @import 'tailwindcss';
+
+/**
+ * Admin-only design tokens ("Modernist" system, ported from the Claude
+ * Design handoff in docs/design/ -- flat, red-on-white, 2px rules, Archivo,
+ * zero border radius). Scoped to `.admin-theme` (wrapping the whole /admin
+ * route subtree, see App.tsx) rather than the Tailwind `@theme` block on
+ * purpose: the public SPA already has its own approved Phase 2 look
+ * (rounded corners, default font) and must not inherit any of this. See
+ * components/Admin/adminUi.ts for the Tailwind-arbitrary-value classes that
+ * consume these variables.
+ */
+.admin-theme {
+  --admin-bg: #f3f2f2;
+  --admin-surface: #ffffff;
+  --admin-text: #201e1d;
+  --admin-text-muted: color-mix(in srgb, #201e1d 55%, transparent);
+  --admin-accent: #ec3013;
+  --admin-accent-700: #b8230d;
+  --admin-divider: #201e1d33;
+  --admin-neutral-50: #f7f6f6;
+  --admin-neutral-100: #ebe9e8;
+  --admin-neutral-200: #ddd9d8;
+  --admin-neutral-300: #c7c2c0;
+  --admin-neutral-500: #918b88;
+  --admin-neutral-700: #4c4746;
+  --admin-neutral-900: #201e1d;
+
+  font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+}
