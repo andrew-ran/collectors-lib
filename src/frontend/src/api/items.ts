@@ -136,6 +136,12 @@ export interface ItemSummary {
   // incomplete, not the API" situation as ItemDetail's admin fields.
   collection: { id: number; name: string; slug: string } | null
   scrape_status: ScrapeStatus
+  /** Same story as above -- `type`/`purchase_price` are plain Item columns,
+   * already in every index() response; added for the redesigned
+   * AdminItemsPage's type pill and Price column (2026-08 admin redesign,
+   * see docs/design/CLAUDE_DESIGN_BRIEF.md). Matches App\Enums\ItemType. */
+  type: string
+  purchase_price: string | null
 }
 
 /** US-009 -- "My Collection" set; Wishlist's desire-score/price options
@@ -186,18 +192,28 @@ export function useCollectionItems(collectionId: number | null, filters: ItemFil
 export interface AdminItemListFilters {
   collectionId?: number | null
   q?: string
+  /** Added for the redesigned AdminItemsPage's filter row (2026-08 admin
+   * redesign) -- ItemController::index() already applied these
+   * independently of collection_id, they just weren't exposed from this
+   * hook yet (same "not the API" situation as ItemSummary's new fields). */
+  platformId?: number | null
+  genreId?: number | null
+  franchiseId?: number | null
 }
 
 export function useAdminItemList(filters: AdminItemListFilters) {
-  const { collectionId, q } = filters
+  const { collectionId, q, platformId, genreId, franchiseId } = filters
 
   return useQuery({
-    queryKey: ['items', 'admin-list', collectionId, q],
+    queryKey: ['items', 'admin-list', collectionId, q, platformId, genreId, franchiseId],
     queryFn: async () => {
       const { data } = await apiClient.get<PaginatedResponse<ItemSummary>>('/items', {
         params: {
           collection_id: collectionId || undefined,
           q: q || undefined,
+          platform_id: platformId || undefined,
+          genre_id: genreId || undefined,
+          franchise_id: franchiseId || undefined,
           per_page: 200,
         },
       })

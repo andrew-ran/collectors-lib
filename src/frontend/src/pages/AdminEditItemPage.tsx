@@ -6,12 +6,17 @@ import {
   ADMIN_BUTTON_PRIMARY,
   ADMIN_BUTTON_SECONDARY,
   ADMIN_CARD,
+  ADMIN_DIVIDER,
   ADMIN_INPUT,
   ADMIN_LABEL,
   ADMIN_LINK,
+  ADMIN_TAG_OUTLINE,
 } from '../components/Admin/adminUi'
+import { PriceCurrencyInput } from '../components/Admin/PriceCurrencyInput'
 import { ItemPhotoManager } from '../components/Admin/ItemPhotoManager'
 import { WishlistAdminPanel } from '../components/Admin/WishlistAdminPanel'
+import { AdminLangSwitch } from '../components/Admin/AdminLangSwitch'
+import { ArrowLeft, Book, Gamepad2, RefreshCw, Trash2, X } from '../components/Admin/icons'
 import {
   useCompanyOptions,
   useFranchiseOptions,
@@ -27,33 +32,41 @@ import {
   type AcquiredDatePrecision,
   type ItemDetail,
 } from '../api/items'
+import { useAdminLang } from '../hooks/adminLang'
 import { resolveReturnTo } from './resolveReturnTo'
 
 /** US-112/113/114/115 -- WordPress-post-edit-style layout (main column +
- * sidebar), per REQUIREMENTS.md US-112. Minimal Tailwind pass (real
- * buttons, bordered inputs, white/gray block grouping) via
- * components/Admin/adminUi.ts -- see that file's docblock; admin visual
- * design beyond this is still an open item, see docs/tz/NEXT_STEPS.md.
- * Genre/Franchise/Developer/Publisher autocomplete uses native <datalist>
- * against api/dictionaries.ts rather than a custom widget. For a book
- * (item.type === 'book'), the main column swaps Genres/Franchise/Developer
- * for Author/Release year instead (Publisher applies to both) -- this was a
- * known gap, see docs/tz/TECH_DEBT.md's "book's author isn't editable" entry
- * for why it wasn't there from the start. Photos
- * (US-117-120, ItemPhotoManager) and, when the item is currently in a
- * wishlist-type collection, the wishlist fields + mark-as-received flow
- * (US-150/151/162/163, WishlistAdminPanel) all mutate independently of this
- * form's Save/Delete -- each action calls its own endpoint immediately,
- * same "instant admin action" pattern as CollectionsAdmin/GiftersAdmin. */
+ * sidebar), per REQUIREMENTS.md US-112. For a book (item.type === 'book'),
+ * the main column swaps Genres/Franchise/Developer for Author/Release year
+ * instead (Publisher applies to both) -- this was a known gap, see
+ * docs/tz/TECH_DEBT.md's "book's author isn't editable" entry for why it
+ * wasn't there from the start. Photos (US-117-120, ItemPhotoManager) and,
+ * when the item is currently in a wishlist-type collection, the wishlist
+ * fields + mark-as-received flow (US-150/151/162/163, WishlistAdminPanel)
+ * all mutate independently of this form's Save/Delete -- each action calls
+ * its own endpoint immediately, same "instant admin action" pattern as
+ * CollectionsAdmin/GiftersAdmin.
+ *
+ * 2026-08 redesign: rebuilt on the Modernist tokens from the Claude Design
+ * handoff (docs/design/CLAUDE_DESIGN_BRIEF.md) -- replaces the earlier
+ * "minimal Tailwind pass" (see git history). The item's entry type
+ * (game/book) is shown as a static badge, not an interactive toggle like
+ * the design prototype's demo switch: unlike the prototype, a real item's
+ * type is fixed at creation (AdminAddItemPage vs AdminAddBookPage vs
+ * AdminAddManualItemPage) and never changes here -- `isBook` below is a read
+ * -only fact derived from `item.type`, not form state. Purchase price now
+ * goes through PriceCurrencyInput (reuses useCurrency()'s convertToEur, see
+ * that hook's docblock) instead of a bare EUR-only number field. */
 export function AdminEditItemPage() {
   const { id } = useParams()
   const itemId = Number(id)
   const { data: item, isLoading, isError } = useItem(Number.isFinite(itemId) ? itemId : null)
+  const { t } = useAdminLang()
 
   if (isLoading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-8">
-        <p className="text-neutral-500">Loading...</p>
+        <p className="text-[var(--admin-text-muted)]">{t.loading}</p>
       </div>
     )
   }
@@ -63,10 +76,10 @@ export function AdminEditItemPage() {
       <div className="mx-auto max-w-4xl px-4 py-8">
         <p className="mb-4">
           <Link to="/admin" className={ADMIN_LINK}>
-            &larr; Back
+            &larr; {t.backToList}
           </Link>
         </p>
-        <p className="text-neutral-500">Item not found.</p>
+        <p className="text-[var(--admin-text-muted)]">Item not found.</p>
       </div>
     )
   }
@@ -85,6 +98,7 @@ function EditForm({ item }: { item: ItemDetail }) {
   const navigate = useNavigate()
   const location = useLocation()
   const returnTo = (location.state as { from?: string } | null)?.from
+  const { t } = useAdminLang()
 
   const { data: collections } = useCollections()
   const { data: platforms } = usePlatformOptions()
@@ -176,17 +190,34 @@ function EditForm({ item }: { item: ItemDetail }) {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <p className="mb-4">
-        <Link to={returnTo ?? '/admin'} className={ADMIN_LINK}>
-          &larr; Back
-        </Link>
-      </p>
-      <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Edit item</h1>
+    <div className="mx-auto max-w-5xl px-6 py-8">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Link
+            to={returnTo ?? '/admin'}
+            className={`${ADMIN_LINK} mb-2 inline-flex items-center gap-1`}
+          >
+            <ArrowLeft width={14} height={14} /> {t.backToList}
+          </Link>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--admin-text)]">
+            {item.title}
+          </h1>
+          <p className="mt-0.5 text-sm text-[var(--admin-text-muted)]">
+            {[
+              item.platform?.name,
+              isBook ? t.book : t.game,
+              collections?.find((c) => c.id === item.collection_id)?.name,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        </div>
+        <AdminLangSwitch />
+      </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6 sm:flex-row">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 md:grid-cols-[2fr_1fr]">
         {/* Main column */}
-        <div className={`flex-[2] space-y-4 ${ADMIN_CARD}`}>
+        <div className={`flex flex-col gap-4 ${ADMIN_CARD}`}>
           <ItemPhotoManager
             itemId={item.id}
             igdbCoverUrl={item.igdb_cover_url}
@@ -194,7 +225,10 @@ function EditForm({ item }: { item: ItemDetail }) {
           />
 
           <div>
-            <label className={ADMIN_LABEL}>Title{edited('title')}</label>
+            <label className={ADMIN_LABEL}>
+              {t.title}
+              {edited('title')}
+            </label>
             <input
               type="text"
               value={title}
@@ -206,7 +240,10 @@ function EditForm({ item }: { item: ItemDetail }) {
           </div>
 
           <div>
-            <label className={ADMIN_LABEL}>Description{edited('description')}</label>
+            <label className={ADMIN_LABEL}>
+              {t.description}
+              {edited('description')}
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -215,27 +252,40 @@ function EditForm({ item }: { item: ItemDetail }) {
             />
           </div>
 
+          {/* Static entry-type badge -- see this file's docblock for why
+              it's not an interactive toggle like the design prototype's
+              demo switch. */}
+          <div className="flex items-center gap-1.5">
+            {isBook ? <Book width={14} height={14} /> : <Gamepad2 width={14} height={14} />}
+            <span className="text-xs font-medium text-[var(--admin-text-muted)]">
+              {isBook ? t.book : t.game}
+            </span>
+          </div>
+
           {/* Genres/Franchise/Developer only apply to games -- a book has
               Author instead (see docs/tz/TECH_DEBT.md's now-resolved note
               on this). Publisher applies to both, so it's shared below. */}
           {!isBook && (
-            <>
-              <div>
-                <label className={ADMIN_LABEL}>Genres{edited('genres')}</label>
+            <div className="border border-[var(--admin-divider)] p-3">
+              <p className="mb-3 text-xs font-semibold tracking-wide text-[var(--admin-text-muted)] uppercase">
+                {t.gameData}
+              </p>
+              <div className="mb-3">
+                <label className={ADMIN_LABEL}>
+                  {t.genres}
+                  {edited('genres')}
+                </label>
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   {genres.map((name) => (
-                    <span
-                      key={name}
-                      className="flex items-center gap-1 rounded-full border border-neutral-300 bg-white px-2.5 py-0.5 text-sm text-neutral-700"
-                    >
+                    <span key={name} className={ADMIN_TAG_OUTLINE}>
                       {name}
                       <button
                         type="button"
                         onClick={() => setGenres(genres.filter((g) => g !== name))}
-                        className="text-neutral-400 hover:text-red-600"
+                        className="text-[var(--admin-text-muted)] hover:text-[var(--admin-accent)]"
                         aria-label={`Remove ${name}`}
                       >
-                        &times;
+                        <X width={10} height={10} />
                       </button>
                     </span>
                   ))}
@@ -247,7 +297,7 @@ function EditForm({ item }: { item: ItemDetail }) {
                   onChange={(e) => setGenreInput(e.target.value)}
                   onKeyDown={handleGenreKeyDown}
                   onBlur={addGenre}
-                  placeholder="Type a genre, Enter to add"
+                  placeholder={t.addGenrePlaceholder}
                   className={ADMIN_INPUT}
                 />
                 <datalist id="genre-options">
@@ -258,7 +308,10 @@ function EditForm({ item }: { item: ItemDetail }) {
               </div>
 
               <div>
-                <label className={ADMIN_LABEL}>Franchise{edited('franchise_id')}</label>
+                <label className={ADMIN_LABEL}>
+                  {t.franchiseLabel}
+                  {edited('franchise_id')}
+                </label>
                 <input
                   type="text"
                   list="franchise-options"
@@ -273,38 +326,12 @@ function EditForm({ item }: { item: ItemDetail }) {
                   ))}
                 </datalist>
               </div>
-            </>
-          )}
 
-          {isBook && (
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className={ADMIN_LABEL}>Author{edited('author')}</label>
-                <input
-                  type="text"
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  className={ADMIN_INPUT}
-                />
-              </div>
-              <div className="flex-1">
-                <label className={ADMIN_LABEL}>Release year{edited('release_year')}</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={9999}
-                  value={releaseYear}
-                  onChange={(e) => setReleaseYear(e.target.value)}
-                  className={ADMIN_INPUT}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-4">
-            {!isBook && (
-              <div className="flex-1">
-                <label className={ADMIN_LABEL}>Developer{edited('developer')}</label>
+              <div className="mt-3">
+                <label className={ADMIN_LABEL}>
+                  {t.developer}
+                  {edited('developer')}
+                </label>
                 <input
                   type="text"
                   list="company-options"
@@ -313,17 +340,57 @@ function EditForm({ item }: { item: ItemDetail }) {
                   className={ADMIN_INPUT}
                 />
               </div>
-            )}
-            <div className="flex-1">
-              <label className={ADMIN_LABEL}>Publisher{edited('publisher')}</label>
-              <input
-                type="text"
-                list="company-options"
-                value={publisher}
-                onChange={(e) => setPublisher(e.target.value)}
-                className={ADMIN_INPUT}
-              />
             </div>
+          )}
+
+          {isBook && (
+            <div className="border border-[var(--admin-divider)] p-3">
+              <p className="mb-3 text-xs font-semibold tracking-wide text-[var(--admin-text-muted)] uppercase">
+                {t.bookData}
+              </p>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className={ADMIN_LABEL}>
+                    {t.author}
+                    {edited('author')}
+                  </label>
+                  <input
+                    type="text"
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    className={ADMIN_INPUT}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className={ADMIN_LABEL}>
+                    {t.publicationYear}
+                    {edited('release_year')}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={9999}
+                    value={releaseYear}
+                    onChange={(e) => setReleaseYear(e.target.value)}
+                    className={ADMIN_INPUT}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className={ADMIN_LABEL}>
+              {t.publisher}
+              {edited('publisher')}
+            </label>
+            <input
+              type="text"
+              list="company-options"
+              value={publisher}
+              onChange={(e) => setPublisher(e.target.value)}
+              className={ADMIN_INPUT}
+            />
             <datalist id="company-options">
               {companyOptions?.map((name) => (
                 <option key={name} value={name} />
@@ -333,15 +400,15 @@ function EditForm({ item }: { item: ItemDetail }) {
         </div>
 
         {/* Sidebar */}
-        <div className={`flex-1 space-y-4 ${ADMIN_CARD}`}>
+        <div className={`flex flex-col gap-4 ${ADMIN_CARD}`}>
           <div>
-            <label className={ADMIN_LABEL}>Platform</label>
+            <label className={ADMIN_LABEL}>{t.platform}</label>
             <select
               value={platformId ?? ''}
               onChange={(e) => setPlatformId(e.target.value ? Number(e.target.value) : null)}
               className={ADMIN_INPUT}
             >
-              <option value="">Unknown</option>
+              <option value="">{t.unknown}</option>
               {platforms?.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -353,7 +420,7 @@ function EditForm({ item }: { item: ItemDetail }) {
           <div>
             {/* US-114 -- moving an item between collections is just picking
                 a different one here and saving. */}
-            <label className={ADMIN_LABEL}>Collection</label>
+            <label className={ADMIN_LABEL}>{t.collection}</label>
             <select
               value={collectionId}
               onChange={(e) => setCollectionId(Number(e.target.value))}
@@ -368,16 +435,16 @@ function EditForm({ item }: { item: ItemDetail }) {
           </div>
 
           <div>
-            <label className={ADMIN_LABEL}>Acquired date</label>
+            <label className={ADMIN_LABEL}>{t.acquisitionDate}</label>
             <select
               value={acquiredPrecision}
               onChange={(e) => setAcquiredPrecision(e.target.value as AcquiredDatePrecision | '')}
               className={`${ADMIN_INPUT} mb-2`}
             >
-              <option value="">Unknown</option>
-              <option value="day">Exact day</option>
-              <option value="month">Month + year</option>
-              <option value="year">Year only</option>
+              <option value="">{t.unknown}</option>
+              <option value="day">{t.exactDay}</option>
+              <option value="month">{t.monthYear}</option>
+              <option value="year">{t.yearOnly}</option>
             </select>
             {acquiredPrecision && (
               <input
@@ -390,19 +457,12 @@ function EditForm({ item }: { item: ItemDetail }) {
           </div>
 
           <div>
-            <label className={ADMIN_LABEL}>Purchase price (EUR)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={purchasePrice}
-              onChange={(e) => setPurchasePrice(e.target.value)}
-              className={ADMIN_INPUT}
-            />
+            <label className={ADMIN_LABEL}>{t.purchasePrice}</label>
+            <PriceCurrencyInput eurValue={purchasePrice} onChangeEurValue={setPurchasePrice} />
           </div>
 
           <div>
-            <label className={ADMIN_LABEL}>Notes</label>
+            <label className={ADMIN_LABEL}>{t.notes}</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -411,10 +471,10 @@ function EditForm({ item }: { item: ItemDetail }) {
             />
           </div>
 
-          <div className="rounded-lg border border-neutral-200 bg-white p-3">
-            <p className="mb-2 text-sm text-neutral-600">
-              Scrape status:{' '}
-              <strong className="text-neutral-900">
+          <div className="border border-[var(--admin-divider)] p-3">
+            <p className="mb-2 text-sm text-[var(--admin-text-muted)]">
+              {t.scrapeStatus}:{' '}
+              <strong className="text-[var(--admin-text)]">
                 {SCRAPE_STATUS_LABEL[item.scrape_status]}
               </strong>
             </p>
@@ -425,16 +485,20 @@ function EditForm({ item }: { item: ItemDetail }) {
               title={item.igdb_id ? undefined : 'This item has no igdb_id (added manually)'}
               className={`${ADMIN_BUTTON_SECONDARY} w-full`}
             >
-              {rescrapeItem.isPending ? 'Refreshing...' : 'Refresh metadata'}
+              <RefreshCw width={14} height={14} />
+              {rescrapeItem.isPending ? 'Refreshing...' : t.refreshMetadata}
             </button>
             {rescrapeItem.isError && (
-              <p className="mt-2 text-sm text-red-600">Failed to trigger re-scrape.</p>
+              <p className="mt-2 text-sm text-[var(--admin-accent-700)]">
+                Failed to trigger re-scrape.
+              </p>
             )}
           </div>
 
+          <div className={ADMIN_DIVIDER} />
           <div className="flex gap-2">
             <button type="submit" disabled={updateItem.isPending} className={ADMIN_BUTTON_PRIMARY}>
-              {updateItem.isPending ? 'Saving...' : 'Save'}
+              {updateItem.isPending ? t.saving : t.save}
             </button>
             <button
               type="button"
@@ -442,13 +506,13 @@ function EditForm({ item }: { item: ItemDetail }) {
               disabled={deleteItem.isPending}
               className={ADMIN_BUTTON_DANGER}
             >
-              Delete
+              <Trash2 width={14} height={14} /> {t.delete}
             </button>
           </div>
 
-          {updateItem.isSuccess && <p className="text-sm text-green-700">Saved.</p>}
+          {updateItem.isSuccess && <p className="text-sm text-[var(--admin-text)]">{t.saved}</p>}
           {updateItem.isError && (
-            <p className="text-sm text-red-600">Failed to save -- try again.</p>
+            <p className="text-sm text-[var(--admin-accent-700)]">{t.saveFailed}</p>
           )}
         </div>
       </form>
