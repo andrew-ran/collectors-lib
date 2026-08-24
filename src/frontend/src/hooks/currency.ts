@@ -38,6 +38,16 @@ export interface CurrencyContextValue {
    * price fields are) to the selected currency, rounded and formatted per
    * US-171 (e.g. "~1 270 ₽"). Returns null for a null/unparseable input. */
   formatPrice: (eurAmount: string | number | null) => string | null
+  /** Added for the 2026-08 admin redesign's purchase-price currency pickers
+   * (AdminEditItemPage, WishlistAdminPanel's mark-as-received dialog) --
+   * the app always *stores* prices in EUR (see PROJECT.md), the currency
+   * picker there is a data-entry convenience only, so an admin-entered
+   * amount in e.g. USD has to be converted to EUR before it's sent to the
+   * API. The inverse of formatPrice(), unrounded (rounding a value about to
+   * be stored, not just displayed, would lose precision) and unformatted
+   * (caller owns the input's live value). Returns null if there's no cached
+   * rate yet for `currency`. */
+  convertToEur: (amount: number, currency: Currency) => number | null
 }
 
 // Defined in this plain hook/constants module, not the .tsx provider file --

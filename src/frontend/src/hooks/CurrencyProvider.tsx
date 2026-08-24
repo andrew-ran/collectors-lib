@@ -66,8 +66,19 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     return `~${formatThousands(rounded)} ${CURRENCY_META[currency].suffix}`
   }
 
+  function convertToEur(amount: number, currency: Currency): number | null {
+    if (currency === 'EUR') return amount
+
+    const rate = Number(rates?.[currency] ?? NaN)
+    if (!Number.isFinite(rate) || rate === 0) return null
+
+    return amount / rate
+  }
+
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, availableCurrencies, formatPrice }}>
+    <CurrencyContext.Provider
+      value={{ currency, setCurrency, availableCurrencies, formatPrice, convertToEur }}
+    >
       {children}
     </CurrencyContext.Provider>
   )
