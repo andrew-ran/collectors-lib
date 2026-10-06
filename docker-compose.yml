@@ -2,6 +2,8 @@ services:
   app:
     build:
       context: ./src/backend
+      args:
+        WITH_XDEBUG: "true"
     volumes:
       - ./src/backend:/var/www/html
     depends_on:
@@ -11,6 +13,8 @@ services:
   queue:
     build:
       context: ./src/backend
+      args:
+        WITH_XDEBUG: "true"
     command: php artisan queue:work --tries=3
     volumes:
       - ./src/backend:/var/www/html
@@ -26,6 +30,8 @@ services:
   scheduler:
     build:
       context: ./src/backend
+      args:
+        WITH_XDEBUG: "true"
     command: php artisan schedule:work
     volumes:
       - ./src/backend:/var/www/html
