@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Xdebug is no longer in the production `app` image: the Dockerfile installs it only with `--build-arg WITH_XDEBUG=true` (set by `docker-compose.yml` for local dev). This also removes the "Xdebug: Could not connect to debugging client" warning from every `artisan` call on the server and a slow pecl compile under QEMU.
 
 ### Fixed
+- Admin "Site settings" block stayed on "Loading settings..." forever if its request failed (the loading branch also caught the error case). It now shows "Failed to load settings." with a Retry button.
 - White screen after "Save wishlist details" and after "Mark as received": `WishlistDetailController` returned a partially loaded item (no `genres`/`photos`/`metadata`), which the frontend caches as the item's detail, and `AdminEditItemPage` crashed on `item.genres.map`. Both endpoints now return the same full shape as `GET /items/{id}`; "Mark as received" additionally redirects to the Items list since the item has left the wishlist.
 - Admin Items list showed received items as "Wishlist": it keyed off the existence of a `wishlist_detail` row, which is kept after "Mark as received" as acquisition history. Now keyed off the item's current collection (`is_wishlist`), for both the badge and the price column.
 - Admin currency picker: the select inherited `w-full` and squeezed the price input out of the sidebar; it's now a fixed narrow width (Purchase price and Price paid).

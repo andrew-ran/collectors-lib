@@ -1,6 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { useSiteSettings, useUpdateSiteSettings, type SiteSettings } from '../../api/settings'
-import { ADMIN_BUTTON_PRIMARY, ADMIN_CARD, ADMIN_INPUT, ADMIN_LABEL } from './adminUi'
+import {
+  ADMIN_BUTTON_PRIMARY,
+  ADMIN_BUTTON_SECONDARY,
+  ADMIN_CARD,
+  ADMIN_INPUT,
+  ADMIN_LABEL,
+} from './adminUi'
 
 const DESCRIPTION_MAX = 300
 
@@ -15,7 +21,25 @@ const DESCRIPTION_MAX = 300
  * mount, not an effect + setState -- see react-hooks/set-state-in-effect)
  * instead of copying async data into local state after the fact. */
 export function SiteSettingsAdmin() {
-  const { data: settings, isLoading } = useSiteSettings()
+  const { data: settings, isLoading, isError, refetch, isFetching } = useSiteSettings()
+
+  // A failed request used to fall into the "Loading..." branch below forever
+  // (`!settings` is also true on error) -- show the failure and a retry.
+  if (isError) {
+    return (
+      <div className="mt-8">
+        <p className="mb-2 text-[var(--admin-accent-700)]">Failed to load settings.</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className={ADMIN_BUTTON_SECONDARY}
+        >
+          {isFetching ? 'Retrying...' : 'Retry'}
+        </button>
+      </div>
+    )
+  }
 
   if (isLoading || !settings) {
     return <p className="mt-8 text-neutral-500">Loading settings...</p>
