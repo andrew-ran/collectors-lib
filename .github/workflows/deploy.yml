@@ -70,6 +70,11 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ env.IMAGE_APP }}:latest
+          # Reuse unchanged layers (PHP extensions, composer deps) between
+          # runs via GitHub's Actions cache instead of rebuilding everything,
+          # including the slow arm64-under-QEMU compile steps, every push.
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,scope=app,mode=max
 
       - name: Build and push web image
         uses: docker/build-push-action@v6
@@ -79,6 +84,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ env.IMAGE_WEB }}:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
 
   deploy:
     needs: build

@@ -1,0 +1,13 @@
+# Keep the build context small and never copy local secrets/deps into an image
+# (CI builds from a clean checkout anyway; this protects local `docker build`s).
+.env
+.env.*
+!.env.example
+vendor
+node_modules
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+tests
+.phpunit.result.cache
