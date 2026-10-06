@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docker/web.Dockerfile`: multi-stage build producing a single image with the compiled React SPA + production nginx config baked in.
 - `docker/nginx.prod.conf` (committed for real, not just as `.example`): needed because the CI build step bakes this file into the `web` image directly from the repo -- unlike `Caddyfile`/`docker-compose.prod.yml`, it can't be created locally on the server after the fact. Contains only the domain and internal routing, nothing sensitive.
 
+### Changed
+- Faster CI deploys (previously ~47 min, almost all of it the multi-arch image build): `deploy.yml` now caches Docker layers between runs (`type=gha` buildx cache, per image); `src/backend/Dockerfile` copies `composer.json`/`composer.lock` and runs `composer install` before copying the rest of the source, so the dependency layer is only rebuilt when dependencies change; and a new `src/backend/.dockerignore` keeps `vendor/`, `.env` and test/cache files out of the build context.
+- Xdebug is no longer in the production `app` image: the Dockerfile installs it only with `--build-arg WITH_XDEBUG=true` (set by `docker-compose.yml` for local dev). This also removes the "Xdebug: Could not connect to debugging client" warning from every `artisan` call on the server and a slow pecl compile under QEMU.
+
 ### Fixed
 - White screen after "Save wishlist details" and after "Mark as received": `WishlistDetailController` returned a partially loaded item (no `genres`/`photos`/`metadata`), which the frontend caches as the item's detail, and `AdminEditItemPage` crashed on `item.genres.map`. Both endpoints now return the same full shape as `GET /items/{id}`; "Mark as received" additionally redirects to the Items list since the item has left the wishlist.
 - Admin Items list showed received items as "Wishlist": it keyed off the existence of a `wishlist_detail` row, which is kept after "Mark as received" as acquisition history. Now keyed off the item's current collection (`is_wishlist`), for both the badge and the price column.
