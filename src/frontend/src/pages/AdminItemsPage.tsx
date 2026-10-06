@@ -7,8 +7,9 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { CURRENCIES, CURRENCY_META, useCurrency, type Currency } from '../hooks/currency'
 import { useAdminLang } from '../hooks/adminLang'
 import { AdminLangSwitch } from '../components/Admin/AdminLangSwitch'
-import { Pencil } from '../components/Admin/icons'
+import { Pencil, Plus } from '../components/Admin/icons'
 import {
+  ADMIN_BUTTON_PRIMARY,
   ADMIN_INPUT,
   ADMIN_LABEL,
   ADMIN_LINK,
@@ -44,6 +45,7 @@ export function AdminItemsPage() {
   const [platformId, setPlatformId] = useState<number | null>(null)
   const [genreId, setGenreId] = useState<number | null>(null)
   const [franchiseId, setFranchiseId] = useState<number | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query)
 
@@ -60,7 +62,11 @@ export function AdminItemsPage() {
   const returnTo = `${location.pathname}${location.search}`
 
   function itemPrice(item: ItemSummary): string | null {
-    if (item.wishlist_detail) {
+    // Decided by the item's *current collection*, not by whether a
+    // wishlist_detail row exists -- that row is kept after "mark as received"
+    // (it records the gift/price paid), so received items would otherwise
+    // keep showing up as Wishlist.
+    if (item.collection?.is_wishlist && item.wishlist_detail) {
       const estimate =
         item.wishlist_detail.price_new_estimate ?? item.wishlist_detail.price_used_estimate
       const formatted = formatPrice(estimate)
@@ -86,6 +92,32 @@ export function AdminItemsPage() {
           <p className="mt-0.5 text-sm text-[var(--admin-text-muted)]">{t.listSubtitle}</p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setAddOpen((o) => !o)}
+              className={ADMIN_BUTTON_PRIMARY}
+            >
+              <Plus width={14} height={14} /> {t.addItem}
+            </button>
+            {addOpen && (
+              <div className="absolute right-0 z-10 mt-1 w-56 border-2 border-[var(--admin-divider)] bg-[var(--admin-surface)]">
+                {[
+                  { to: '/admin/add', label: t.addGame },
+                  { to: '/admin/add-book', label: t.addBook },
+                  { to: '/admin/add-manual', label: t.addManual },
+                ].map((o) => (
+                  <Link
+                    key={o.to}
+                    to={o.to}
+                    className="block px-3 py-2 text-sm hover:bg-[var(--admin-neutral-50)]"
+                  >
+                    {o.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
           <AdminLangSwitch />
           <div className="min-w-[140px]">
             <label className={ADMIN_LABEL}>{t.displayCurrency}</label>
@@ -243,7 +275,7 @@ export function AdminItemsPage() {
                     {item.platform?.name ?? '—'}
                   </td>
                   <td className="px-3 py-2">
-                    {item.wishlist_detail ? (
+                    {item.collection?.is_wishlist ? (
                       <span className={ADMIN_TAG_ACCENT}>{t.wishlist}</span>
                     ) : (
                       <span className="text-[var(--admin-text-muted)]">

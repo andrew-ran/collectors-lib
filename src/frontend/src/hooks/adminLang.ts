@@ -48,6 +48,10 @@ export interface AdminStrings {
   colStatus: string
   colPrice: string
   edit: string
+  addItem: string
+  addGame: string
+  addBook: string
+  addManual: string
   noItems: string
   loading: string
   myCollection: string
@@ -144,6 +148,10 @@ const en: AdminStrings = {
   colStatus: 'Status',
   colPrice: 'Price',
   edit: 'Edit',
+  addItem: 'Add item',
+  addGame: 'Game (IGDB search)',
+  addBook: 'Book',
+  addManual: 'Console / peripheral',
   noItems: 'No items match.',
   loading: 'Loading...',
   myCollection: 'My collection',
@@ -237,6 +245,10 @@ const ru: AdminStrings = {
   colStatus: 'Статус',
   colPrice: 'Цена',
   edit: 'Изменить',
+  addItem: 'Добавить товар',
+  addGame: 'Игра (поиск IGDB)',
+  addBook: 'Книга',
+  addManual: 'Консоль / периферия',
   noItems: 'Ничего не найдено.',
   loading: 'Загрузка...',
   myCollection: 'Моя коллекция',
@@ -331,6 +343,10 @@ const uk: AdminStrings = {
   colStatus: 'Статус',
   colPrice: 'Ціна',
   edit: 'Змінити',
+  addItem: 'Додати товар',
+  addGame: 'Гра (пошук IGDB)',
+  addBook: 'Книга',
+  addManual: 'Консоль / периферія',
   noItems: 'Нічого не знайдено.',
   loading: 'Завантаження...',
   myCollection: 'Моя колекція',
@@ -425,6 +441,10 @@ const be: AdminStrings = {
   colStatus: 'Статус',
   colPrice: 'Цана',
   edit: 'Змяніць',
+  addItem: 'Дадаць тавар',
+  addGame: 'Гульня (пошук IGDB)',
+  addBook: 'Кніга',
+  addManual: 'Кансоль / перыферыя',
   noItems: 'Нічога не знойдзена.',
   loading: 'Загрузка...',
   myCollection: 'Мая калекцыя',

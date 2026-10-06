@@ -70,7 +70,8 @@ export function PriceCurrencyInput({
       <select
         value={inputCurrency}
         onChange={(e) => handleCurrencyChange(e.target.value as Currency)}
-        className={`${ADMIN_INPUT} w-[84px] flex-none`}
+        // ADMIN_INPUT is w-full -- override it, or the select swallows the row.
+        className={`${ADMIN_INPUT.replace('w-full', '')} w-[4.5rem] flex-none px-2`}
       >
         {CURRENCIES.filter((c) => availableCurrencies.includes(c)).map((c) => (
           <option key={c} value={c}>
@@ -78,14 +79,14 @@ export function PriceCurrencyInput({
           </option>
         ))}
       </select>
-      <div className="relative flex-1">
+      <div className="relative min-w-0 flex-1">
         <input
           type="number"
           step="0.01"
           min="0"
           value={rawValue}
           onChange={(e) => handleValueChange(e.target.value)}
-          className={ADMIN_INPUT}
+          className={`${ADMIN_INPUT} ${previewEur !== null ? 'pr-20' : ''}`}
         />
         {previewEur !== null && (
           <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs text-[var(--admin-neutral-500)]">

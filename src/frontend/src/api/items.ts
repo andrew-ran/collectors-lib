@@ -134,7 +134,7 @@ export interface ItemSummary {
   // `collection` and `scrape_status` is a plain column) -- added to the
   // type for AdminItemsPage's collection/status columns, same "type was
   // incomplete, not the API" situation as ItemDetail's admin fields.
-  collection: { id: number; name: string; slug: string } | null
+  collection: { id: number; name: string; slug: string; is_wishlist: boolean } | null
   scrape_status: ScrapeStatus
   /** Same story as above -- `type`/`purchase_price` are plain Item columns,
    * already in every index() response; added for the redesigned

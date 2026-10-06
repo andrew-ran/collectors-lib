@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useCollections, type Collection } from '../../api/collections'
 import { useCreateGifter, useGifters } from '../../api/gifters'
 import { useMarkItemReceived, useUpdateWishlistDetail } from '../../api/wishlistDetail'
@@ -187,6 +188,7 @@ type GifterInputMode = 'pick' | 'oneoff' | 'new'
 
 function MarkReceivedForm({ item }: { item: ItemDetail }) {
   const { t } = useAdminLang()
+  const navigate = useNavigate()
   const { data: collections } = useCollections()
   const { data: gifters } = useGifters()
   const markReceived = useMarkItemReceived(item.id)
@@ -227,15 +229,20 @@ function MarkReceivedForm({ item }: { item: ItemDetail }) {
     event.preventDefault()
     if (!collectionId) return
 
-    markReceived.mutate({
-      acquisition_type: acquisitionType,
-      gifter_id: gifted && gifterMode === 'pick' && gifterId ? Number(gifterId) : null,
-      gifter_name_override: gifted && gifterMode === 'oneoff' ? gifterName || null : null,
-      thank_you_note: gifted ? thankYouNote || null : null,
-      price_paid: pricePaid || null,
-      received_at: receivedDate,
-      collection_id: collectionId,
-    })
+    markReceived.mutate(
+      {
+        acquisition_type: acquisitionType,
+        gifter_id: gifted && gifterMode === 'pick' && gifterId ? Number(gifterId) : null,
+        gifter_name_override: gifted && gifterMode === 'oneoff' ? gifterName || null : null,
+        thank_you_note: gifted ? thankYouNote || null : null,
+        price_paid: pricePaid || null,
+        received_at: receivedDate,
+        collection_id: collectionId,
+      },
+      // The item just left the wishlist, so this whole panel (and the edit
+      // form's wishlist context) is stale -- back to the list instead.
+      { onSuccess: () => navigate('/admin/items') },
+    )
   }
 
   const targetName = collections?.find((c) => c.id === collectionId)?.name ?? '...'

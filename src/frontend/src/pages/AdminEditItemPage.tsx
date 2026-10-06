@@ -136,6 +136,10 @@ function EditForm({ item }: { item: ItemDetail }) {
   const [purchasePrice, setPurchasePrice] = useState(item.purchase_price ?? '')
   const [notes, setNotes] = useState(item.notes ?? '')
 
+  // An item still on the wishlist hasn't been acquired yet, so the
+  // acquisition date only applies to non-wishlist collections.
+  const showAcquired = !collections?.find((c) => c.id === collectionId)?.is_wishlist
+
   function addGenre() {
     const name = genreInput.trim()
 
@@ -165,8 +169,8 @@ function EditForm({ item }: { item: ItemDetail }) {
         title,
         subtitle: item.subtitle,
         platform_id: platformId,
-        acquired_date: acquiredPrecision ? acquiredDate || null : null,
-        acquired_date_precision: acquiredPrecision || null,
+        acquired_date: showAcquired && acquiredPrecision ? acquiredDate || null : null,
+        acquired_date_precision: showAcquired ? acquiredPrecision || null : null,
         purchase_price: purchasePrice || null,
         notes: notes || null,
         description: description || null,
@@ -434,27 +438,29 @@ function EditForm({ item }: { item: ItemDetail }) {
             </select>
           </div>
 
-          <div>
-            <label className={ADMIN_LABEL}>{t.acquisitionDate}</label>
-            <select
-              value={acquiredPrecision}
-              onChange={(e) => setAcquiredPrecision(e.target.value as AcquiredDatePrecision | '')}
-              className={`${ADMIN_INPUT} mb-2`}
-            >
-              <option value="">{t.unknown}</option>
-              <option value="day">{t.exactDay}</option>
-              <option value="month">{t.monthYear}</option>
-              <option value="year">{t.yearOnly}</option>
-            </select>
-            {acquiredPrecision && (
-              <input
-                type="date"
-                value={acquiredDate}
-                onChange={(e) => setAcquiredDate(e.target.value)}
-                className={ADMIN_INPUT}
-              />
-            )}
-          </div>
+          {showAcquired && (
+            <div>
+              <label className={ADMIN_LABEL}>{t.acquisitionDate}</label>
+              <select
+                value={acquiredPrecision}
+                onChange={(e) => setAcquiredPrecision(e.target.value as AcquiredDatePrecision | '')}
+                className={`${ADMIN_INPUT} mb-2`}
+              >
+                <option value="">{t.unknown}</option>
+                <option value="day">{t.exactDay}</option>
+                <option value="month">{t.monthYear}</option>
+                <option value="year">{t.yearOnly}</option>
+              </select>
+              {acquiredPrecision && (
+                <input
+                  type="date"
+                  value={acquiredDate}
+                  onChange={(e) => setAcquiredDate(e.target.value)}
+                  className={ADMIN_INPUT}
+                />
+              )}
+            </div>
+          )}
 
           <div>
             <label className={ADMIN_LABEL}>{t.purchasePrice}</label>
