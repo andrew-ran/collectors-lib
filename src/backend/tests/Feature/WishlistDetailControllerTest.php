@@ -22,6 +22,10 @@ test('US-150 saves wishlist fields independently of the item itself', function (
     ]);
 
     $response->assertOk();
+    // Same full shape as GET /items/{id} -- the admin edit page caches this
+    // response as the item's detail and crashed (white screen) when
+    // genres/photos were missing from it.
+    $response->assertJsonStructure(['id', 'genres', 'photos', 'wishlist_detail']);
     $detail = $item->wishlistDetail()->first();
     expect($detail->condition_preference->value)->toBe('used_ok');
     expect($detail->desire_score)->toBe(80);

@@ -41,9 +41,19 @@ class WishlistDetailController extends Controller
         $detail->fill($validated);
         $item->wishlistDetail()->save($detail);
 
-        $item->load('wishlistDetail.gifter');
+        return $this->fullItem($item);
+    }
 
-        return response()->json($item);
+    /**
+     * The frontend caches this response as the item's detail (see
+     * api/wishlistDetail.ts) and AdminEditItemPage reads `genres`/`metadata`/
+     * `photos` from it, so it must be the same full shape as
+     * ItemController::show() -- a partially loaded item crashed the page
+     * (white screen) right after saving.
+     */
+    private function fullItem(Item $item)
+    {
+        return app(ItemController::class)->show($item->refresh());
     }
 
     /**
@@ -95,8 +105,6 @@ class WishlistDetailController extends Controller
             'purchase_price' => $validated['price_paid'] ?? null,
         ]);
 
-        $item->load(['platform', 'collection', 'wishlistDetail.gifter']);
-
-        return response()->json($item);
+        return $this->fullItem($item);
     }
 }
