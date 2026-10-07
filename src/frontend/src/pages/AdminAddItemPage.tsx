@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import { useCollections } from '../api/collections'
 import { useIgdbSearch, type IgdbSearchResult } from '../api/igdb'
@@ -209,10 +209,24 @@ export function AdminAddItemPage() {
 function AddedItemStatus({ itemId }: { itemId: number }) {
   const { data: item } = useItemStatus(itemId)
 
+  const location = useLocation()
+  const isReady = item?.scrape_status === 'scraped' || item?.scrape_status === 'manual'
+
   return (
-    <li>
-      {item?.title ?? `Item #${itemId}`} &mdash;{' '}
-      {item ? SCRAPE_STATUS_LABEL[item.scrape_status] : '...'}
+    <li className="flex items-center gap-3">
+      <span>
+        {item?.title ?? `Item #${itemId}`} &mdash;{' '}
+        {item ? SCRAPE_STATUS_LABEL[item.scrape_status] : '...'}
+      </span>
+      {isReady && (
+        <Link
+          to={`/admin/items/${itemId}/edit`}
+          state={{ from: location.pathname }}
+          className={ADMIN_LINK}
+        >
+          Edit
+        </Link>
+      )}
     </li>
   )
 }

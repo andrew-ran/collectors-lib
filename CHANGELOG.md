@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- "Edit" link in the "Added this session" lists of the add-game, add-book and add-manual-item admin pages (`AdminAddItemPage.tsx`, `AdminAddBookPage.tsx`, `AdminAddManualItemPage.tsx`). For games it appears once scraping reaches Ready (`scraped`/`manual`); books and manual items have no scrape step, so it shows immediately. Links to `/admin/items/:id/edit` with `state.from` so Back returns to the add page.
 - "Add item" button on the admin Items page (`AdminItemsPage.tsx`), opening a small menu for the three add flows (game via IGDB search, book, console/peripheral).
 - A book's `author`/`release_year` are now editable after creation, not just at add-time: `ItemController::update()`'s `$metadataFields` gained both (same diff-based `manual_overrides` handling as the other metadata fields), and `AdminEditItemPage.tsx`'s main column now branches on `item.type === 'book'` -- Genres/Franchise/Developer (game-only) are hidden and swapped for Author/Release year, Publisher stays shared. Closes a known gap from `docs/tz/TECH_DEBT.md`.
 - Inline "+ Add new gifter" in the mark-as-received flow (`WishlistAdminPanel.tsx`): the gifter field now has a `pick`/`oneoff`/`new` mode, with `new` offering a name + optional avatar mini-form that creates the gifter on the spot (via the existing `useCreateGifter()` hook) and pre-selects it, instead of requiring a trip to the Gifters admin panel first. Closes a known gap noted in `docs/tz/TECH_DEBT.md`.

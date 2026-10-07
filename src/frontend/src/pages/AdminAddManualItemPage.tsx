@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useCollections } from '../api/collections'
 import { usePlatformOptions } from '../api/dictionaries'
 import { useCreateItem } from '../api/items'
@@ -38,7 +38,8 @@ export function AdminAddManualItemPage() {
   const [platformId, setPlatformId] = useState<number | null>(null)
 
   const createItem = useCreateItem()
-  const [addedTitles, setAddedTitles] = useState<string[]>([])
+  const location = useLocation()
+  const [addedTitles, setAddedTitles] = useState<{ id: number; title: string }[]>([])
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -53,7 +54,7 @@ export function AdminAddManualItemPage() {
       },
       {
         onSuccess: (item) => {
-          setAddedTitles((titles) => [item.title, ...titles])
+          setAddedTitles((items) => [{ id: item.id, title: item.title }, ...items])
           setTitle('')
           setPlatformId(null)
         },
@@ -146,8 +147,17 @@ export function AdminAddManualItemPage() {
         <div className="mt-8">
           <h2 className="mb-2 text-lg font-semibold text-neutral-900">Added this session</h2>
           <ul className="space-y-1 text-sm text-neutral-600">
-            {addedTitles.map((addedTitle, i) => (
-              <li key={i}>{addedTitle}</li>
+            {addedTitles.map((added) => (
+              <li key={added.id} className="flex items-center gap-3">
+                <span>{added.title}</span>
+                <Link
+                  to={`/admin/items/${added.id}/edit`}
+                  state={{ from: location.pathname }}
+                  className={ADMIN_LINK}
+                >
+                  Edit
+                </Link>
+              </li>
             ))}
           </ul>
         </div>
