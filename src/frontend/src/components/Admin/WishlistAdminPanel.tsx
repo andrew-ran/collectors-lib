@@ -229,10 +229,28 @@ function MarkReceivedForm({ item }: { item: ItemDetail }) {
     event.preventDefault()
     if (!collectionId) return
 
+    // The "new gifter" mini-form has its own Add button; if the admin filled
+    // it in but went straight to Mark as received, create the gifter now
+    // instead of silently dropping it.
+    if (gifted && gifterMode === 'new' && newGifterName.trim()) {
+      const avatar = newGifterAvatarRef.current?.files?.[0] ?? null
+      createGifter.mutate(
+        { name: newGifterName.trim(), avatar },
+        { onSuccess: (newGifter) => submitReceived(newGifter.id) },
+      )
+      return
+    }
+
+    submitReceived(gifted && gifterMode === 'pick' && gifterId ? Number(gifterId) : null)
+  }
+
+  function submitReceived(resolvedGifterId: number | null) {
+    if (!collectionId) return
+
     markReceived.mutate(
       {
         acquisition_type: acquisitionType,
-        gifter_id: gifted && gifterMode === 'pick' && gifterId ? Number(gifterId) : null,
+        gifter_id: gifted ? resolvedGifterId : null,
         gifter_name_override: gifted && gifterMode === 'oneoff' ? gifterName || null : null,
         thank_you_note: gifted ? thankYouNote || null : null,
         price_paid: pricePaid || null,
