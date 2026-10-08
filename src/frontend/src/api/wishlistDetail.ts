@@ -58,3 +58,26 @@ export function useMarkItemReceived(itemId: number) {
     },
   })
 }
+
+/** Edit the gifter / thank-you note of an already-received gift. */
+export interface UpdateAcquisitionPayload {
+  gifter_id: number | null
+  gifter_name_override: string | null
+  thank_you_note: string | null
+}
+
+export function useUpdateAcquisition(itemId: number) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload: UpdateAcquisitionPayload) => {
+      const { data } = await apiClient.put<ItemDetail>(`/items/${itemId}/acquisition`, payload)
+
+      return data
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['items', itemId, 'detail'], data)
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+    },
+  })
+}

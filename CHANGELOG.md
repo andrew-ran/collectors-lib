@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Acquisition card on the admin item edit page for received items (gifter name or one-off name, self-purchase, thank-you note), shown once the item has left the wishlist.
+- Acquisition card on the admin item edit page for received items (gifter name or one-off name, self-purchase, thank-you note), shown once the item has left the wishlist. For gifts the gifter (registered or one-off) and thank-you note are editable inline via the new `PUT /items/{item}/acquisition` (`WishlistDetailController::updateAcquisition()`, rejected for non-gifts).
 - "Edit" link in the "Added this session" lists of the add-game, add-book and add-manual-item admin pages (`AdminAddItemPage.tsx`, `AdminAddBookPage.tsx`, `AdminAddManualItemPage.tsx`). For games it appears once scraping reaches Ready (`scraped`/`manual`); books and manual items have no scrape step, so it shows immediately. Links to `/admin/items/:id/edit` with `state.from` so Back returns to the add page.
 - "Add item" button on the admin Items page (`AdminItemsPage.tsx`), opening a small menu for the three add flows (game via IGDB search, book, console/peripheral).
 - A book's `author`/`release_year` are now editable after creation, not just at add-time: `ItemController::update()`'s `$metadataFields` gained both (same diff-based `manual_overrides` handling as the other metadata fields), and `AdminEditItemPage.tsx`'s main column now branches on `item.type === 'book'` -- Genres/Franchise/Developer (game-only) are hidden and swapped for Author/Release year, Publisher stays shared. Closes a known gap from `docs/tz/TECH_DEBT.md`.
