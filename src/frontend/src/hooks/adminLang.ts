@@ -121,6 +121,9 @@ export interface AdminStrings {
   name: string
   avatarOptional: string
   thankYouNote: string
+  acquisitionDetails: string
+  giftedBy: string
+  noGifterOnFile: string
   pricePaid: string
   receivedDate: string
   acquisitionNotesPlaceholder: string
@@ -218,6 +221,9 @@ const en: AdminStrings = {
   name: 'Name',
   avatarOptional: 'Avatar (optional)',
   thankYouNote: 'Thank-you note',
+  acquisitionDetails: 'Acquisition',
+  giftedBy: 'Gifted by',
+  noGifterOnFile: 'Gifter not recorded',
   pricePaid: 'Price paid',
   receivedDate: 'Date received',
   acquisitionNotesPlaceholder: 'Where it was bought, circumstances, notes',
@@ -316,6 +322,9 @@ const ru: AdminStrings = {
   name: 'Имя',
   avatarOptional: 'Аватар (необязательно)',
   thankYouNote: 'Благодарность (заметка)',
+  acquisitionDetails: 'Получение',
+  giftedBy: 'Подарил(а)',
+  noGifterOnFile: 'Даритель не указан',
   pricePaid: 'Уплаченная цена',
   receivedDate: 'Дата получения',
   acquisitionNotesPlaceholder: 'Где куплено, обстоятельства, заметки',
@@ -414,6 +423,9 @@ const uk: AdminStrings = {
   name: "Ім'я",
   avatarOptional: "Аватар (необов'язково)",
   thankYouNote: 'Подяка (нотатка)',
+  acquisitionDetails: 'Отримання',
+  giftedBy: 'Подарував(ла)',
+  noGifterOnFile: 'Дарувальника не вказано',
   pricePaid: 'Сплачена ціна',
   receivedDate: 'Дата отримання',
   acquisitionNotesPlaceholder: 'Де куплено, обставини, нотатки',
@@ -512,6 +524,9 @@ const be: AdminStrings = {
   name: 'Імя',
   avatarOptional: 'Аватар (неабавязкова)',
   thankYouNote: 'Падзяка (нататка)',
+  acquisitionDetails: 'Атрыманне',
+  giftedBy: 'Падарыў(ла)',
+  noGifterOnFile: 'Дарыцеля не ўказана',
   pricePaid: 'Заплачаная цана',
   receivedDate: 'Дата атрымання',
   acquisitionNotesPlaceholder: 'Дзе куплена, акалічнасці, нататкі',

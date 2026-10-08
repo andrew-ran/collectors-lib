@@ -532,6 +532,33 @@ function EditForm({ item }: { item: ItemDetail }) {
           <WishlistAdminPanel item={item} />
         </div>
       )}
+      {item.wishlist_detail?.received &&
+        !collections?.some((c) => c.id === item.collection_id && c.is_wishlist) && (
+          <div className={`mt-6 ${ADMIN_CARD}`}>
+            <h3 className="mb-2 font-semibold text-[var(--admin-text)]">{t.acquisitionDetails}</h3>
+            <dl className="space-y-1 text-sm">
+              <div>
+                {item.wishlist_detail.acquisition_type === 'gifted' ? (
+                  <>
+                    {t.gift}: {t.giftedBy}{' '}
+                    <strong>
+                      {item.wishlist_detail.gifter?.name ??
+                        item.wishlist_detail.gifter_name_override ??
+                        t.noGifterOnFile}
+                    </strong>
+                  </>
+                ) : (
+                  t.selfPurchase
+                )}
+              </div>
+              {item.wishlist_detail.thank_you_note && (
+                <div>
+                  {t.thankYouNote}: {item.wishlist_detail.thank_you_note}
+                </div>
+              )}
+            </dl>
+          </div>
+        )}
     </div>
   )
 }

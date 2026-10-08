@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Acquisition card on the admin item edit page for received items (gifter name or one-off name, self-purchase, thank-you note), shown once the item has left the wishlist.
 - "Edit" link in the "Added this session" lists of the add-game, add-book and add-manual-item admin pages (`AdminAddItemPage.tsx`, `AdminAddBookPage.tsx`, `AdminAddManualItemPage.tsx`). For games it appears once scraping reaches Ready (`scraped`/`manual`); books and manual items have no scrape step, so it shows immediately. Links to `/admin/items/:id/edit` with `state.from` so Back returns to the add page.
 - "Add item" button on the admin Items page (`AdminItemsPage.tsx`), opening a small menu for the three add flows (game via IGDB search, book, console/peripheral).
 - A book's `author`/`release_year` are now editable after creation, not just at add-time: `ItemController::update()`'s `$metadataFields` gained both (same diff-based `manual_overrides` handling as the other metadata fields), and `AdminEditItemPage.tsx`'s main column now branches on `item.type === 'book'` -- Genres/Franchise/Developer (game-only) are hidden and swapped for Author/Release year, Publisher stays shared. Closes a known gap from `docs/tz/TECH_DEBT.md`.
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Xdebug is no longer in the production `app` image: the Dockerfile installs it only with `--build-arg WITH_XDEBUG=true` (set by `docker-compose.yml` for local dev). This also removes the "Xdebug: Could not connect to debugging client" warning from every `artisan` call on the server and a slow pecl compile under QEMU.
 
 ### Fixed
+- Mark as received silently dropped a gifter typed into the "new gifter" mini-form if "Add gifter" wasn't clicked first; the gifter is now created automatically on submit and linked to the item.
 - Admin "Site settings" block stayed on "Loading settings..." forever if its request failed (the loading branch also caught the error case). It now shows "Failed to load settings." with a Retry button.
 - White screen after "Save wishlist details" and after "Mark as received": `WishlistDetailController` returned a partially loaded item (no `genres`/`photos`/`metadata`), which the frontend caches as the item's detail, and `AdminEditItemPage` crashed on `item.genres.map`. Both endpoints now return the same full shape as `GET /items/{id}`; "Mark as received" additionally redirects to the Items list since the item has left the wishlist.
 - Admin Items list showed received items as "Wishlist": it keyed off the existence of a `wishlist_detail` row, which is kept after "Mark as received" as acquisition history. Now keyed off the item's current collection (`is_wishlist`), for both the badge and the price column.
