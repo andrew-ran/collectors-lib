@@ -115,3 +115,33 @@ test('self-purchased clears gifted-only fields even if they were sent', function
     expect($detail->thank_you_note)->toBeNull();
     expect((string) $item->fresh()->purchase_price)->toBe('29.99');
 });
+
+test('a received gift\'s gifter and note can be edited afterwards', function () {
+    $item = Item::factory()->create();
+    $gifter = Gifter::factory()->create();
+    $item->wishlistDetail()->create([
+        'received' => true,
+        'acquisition_type' => 'gifted',
+        'gifter_name_override' => 'Uncle Bob',
+        'thank_you_note' => 'old',
+    ]);
+
+    $this->putJson("/api/items/{$item->id}/acquisition", [
+        'gifter_id' => $gifter->id,
+        'gifter_name_override' => 'ignored',
+        'thank_you_note' => 'new',
+    ])->assertOk()->assertJsonPath('wishlist_detail.gifter.id', $gifter->id);
+
+    $detail = $item->wishlistDetail()->first();
+    expect($detail->gifter_id)->toBe($gifter->id);
+    expect($detail->gifter_name_override)->toBeNull();
+    expect($detail->thank_you_note)->toBe('new');
+});
+
+test('editing the acquisition is rejected for a self-purchased item', function () {
+    $item = Item::factory()->create();
+    $item->wishlistDetail()->create(['received' => true, 'acquisition_type' => 'self_purchased']);
+
+    $this->putJson("/api/items/{$item->id}/acquisition", ['thank_you_note' => 'x'])
+        ->assertStatus(422);
+});

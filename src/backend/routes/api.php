@@ -57,6 +57,7 @@ Route::middleware('throttle:api')->group(function () {
         // US-150/151 -- wishlist admin fields + mark-as-received flow.
         Route::put('/items/{item}/wishlist-detail', [WishlistDetailController::class, 'update']);
         Route::post('/items/{item}/mark-received', [WishlistDetailController::class, 'markReceived']);
+        Route::put('/items/{item}/acquisition', [WishlistDetailController::class, 'updateAcquisition']);
 
         // US-110 -- admin-only IGDB search for the "add item" flow.
         Route::get('/search/igdb', [IgdbSearchController::class, 'search']);

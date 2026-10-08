@@ -107,4 +107,36 @@ class WishlistDetailController extends Controller
 
         return $this->fullItem($item);
     }
+
+    /**
+     * Edit the gifter / thank-you note of an already-received gift (the
+     * "Acquisition" card on the admin edit page). Only valid for a received,
+     * gifted item; same gifter_id / one-off name exclusivity as markReceived().
+     */
+    public function updateAcquisition(Request $request, Item $item)
+    {
+        $detail = $item->wishlistDetail;
+        abort_unless(
+            $detail && $detail->received && $detail->acquisition_type === AcquisitionType::Gifted,
+            422,
+            'Only received gifts have an editable acquisition.',
+        );
+
+        $validated = $request->validate([
+            'gifter_id' => ['nullable', 'exists:gifters,id'],
+            'gifter_name_override' => ['nullable', 'string', 'max:255'],
+            'thank_you_note' => ['nullable', 'string'],
+        ]);
+
+        $detail->fill([
+            'gifter_id' => $validated['gifter_id'] ?? null,
+            'gifter_name_override' => empty($validated['gifter_id'])
+                ? ($validated['gifter_name_override'] ?? null)
+                : null,
+            'thank_you_note' => $validated['thank_you_note'] ?? null,
+        ]);
+        $detail->save();
+
+        return $this->fullItem($item);
+    }
 }
