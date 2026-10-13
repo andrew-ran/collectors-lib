@@ -10,7 +10,7 @@ import {
 import { ADMIN_BUTTON_PRIMARY, ADMIN_CARD, ADMIN_INPUT, ADMIN_LABEL } from './adminUi'
 
 const ROW_BUTTON =
-  'rounded-full border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50'
+  'rounded-full border border-[var(--admin-divider)] bg-white px-2.5 py-1 text-xs font-medium text-[var(--admin-text-muted)] hover:bg-[var(--admin-neutral-50)] disabled:cursor-not-allowed disabled:opacity-50'
 
 /** US-130/131/132/133 -- simple list + inline rename/wishlist-toggle/delete,
  * plus a small "add collection" form. The server is the source of truth for
@@ -41,19 +41,19 @@ export function CollectionsAdmin() {
 
   return (
     <div className={`mt-8 space-y-4 ${ADMIN_CARD}`}>
-      <h2 className="text-lg font-semibold text-neutral-900">Collections</h2>
+      <h2 className="text-lg font-semibold text-[var(--admin-text)]">Collections</h2>
 
       {collections && collections.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-neutral-200">
+        <div className="overflow-hidden border border-[var(--admin-divider)]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-white text-neutral-500">
+            <thead className="bg-white text-[var(--admin-text-muted)]">
               <tr>
                 <th className="px-3 py-2 font-medium">Name</th>
                 <th className="px-3 py-2 font-medium">Wishlist-type</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100 bg-white">
+            <tbody className="divide-y divide-[var(--admin-divider)] bg-white">
               {collections.map((collection) => (
                 <CollectionRow key={collection.id} collection={collection} />
               ))}
@@ -74,7 +74,7 @@ export function CollectionsAdmin() {
             className={ADMIN_INPUT}
           />
         </div>
-        <label className="flex items-center gap-1.5 pb-2 text-sm text-neutral-600">
+        <label className="flex items-center gap-1.5 pb-2 text-sm text-[var(--admin-text-muted)]">
           <input
             type="checkbox"
             checked={isWishlist}
@@ -91,7 +91,7 @@ export function CollectionsAdmin() {
         </button>
       </form>
       {createCollection.isError && (
-        <p className="text-sm text-red-600">Failed to create collection.</p>
+        <p className="text-sm text-[var(--admin-accent-700)]">Failed to create collection.</p>
       )}
     </div>
   )
@@ -176,10 +176,10 @@ function CollectionRow({ collection }: { collection: Collection }) {
             </button>
           </div>
         ) : (
-          <span className="font-medium text-neutral-900">
+          <span className="font-medium text-[var(--admin-text)]">
             {collection.name}
             {collection.is_default && (
-              <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-normal text-neutral-500">
+              <span className="ml-2 rounded-full bg-[var(--admin-neutral-100)] px-2 py-0.5 text-xs font-normal text-[var(--admin-text-muted)]">
                 Default
               </span>
             )}

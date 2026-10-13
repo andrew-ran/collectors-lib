@@ -42,7 +42,7 @@ export function SiteSettingsAdmin() {
   }
 
   if (isLoading || !settings) {
-    return <p className="mt-8 text-neutral-500">Loading settings...</p>
+    return <p className="mt-8 text-[var(--admin-text-muted)]">Loading settings...</p>
   }
 
   return <SiteSettingsForm settings={settings} />
@@ -62,8 +62,8 @@ function SiteSettingsForm({ settings }: { settings: SiteSettings }) {
   return (
     <form onSubmit={handleSubmit} className={`mt-8 space-y-4 ${ADMIN_CARD}`}>
       <div>
-        <h2 className="text-lg font-semibold text-neutral-900">Site settings</h2>
-        <p className="mt-1 text-sm text-neutral-500">
+        <h2 className="text-lg font-semibold text-[var(--admin-text)]">Site settings</h2>
+        <p className="mt-1 text-sm text-[var(--admin-text-muted)]">
           Used for the browser tab title and meta description. Leave blank to use the default.
         </p>
       </div>
@@ -96,7 +96,7 @@ function SiteSettingsForm({ settings }: { settings: SiteSettings }) {
           onChange={(e) => setDescription(e.target.value)}
           className={ADMIN_INPUT}
         />
-        <span className="text-sm text-neutral-500">
+        <span className="text-sm text-[var(--admin-text-muted)]">
           {description.length}/{DESCRIPTION_MAX}
         </span>
       </div>
@@ -105,9 +105,13 @@ function SiteSettingsForm({ settings }: { settings: SiteSettings }) {
         <button type="submit" disabled={updateSettings.isPending} className={ADMIN_BUTTON_PRIMARY}>
           {updateSettings.isPending ? 'Saving...' : 'Save'}
         </button>
-        {updateSettings.isSuccess && <span className="text-sm text-green-700">Saved.</span>}
+        {updateSettings.isSuccess && (
+          <span className="text-sm text-[var(--admin-text)]">Saved.</span>
+        )}
         {updateSettings.isError && (
-          <span className="text-sm text-red-600">Failed to save -- try again.</span>
+          <span className="text-sm text-[var(--admin-accent-700)]">
+            Failed to save -- try again.
+          </span>
         )}
       </div>
     </form>

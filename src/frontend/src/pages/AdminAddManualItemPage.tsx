@@ -69,7 +69,9 @@ export function AdminAddManualItemPage() {
           &larr; Back
         </Link>
       </p>
-      <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Add console / peripheral</h1>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-[var(--admin-text)]">
+        Add console / peripheral
+      </h1>
 
       <div className="mb-4">
         <label className={ADMIN_LABEL}>Adding to</label>
@@ -89,7 +91,7 @@ export function AdminAddManualItemPage() {
       <form onSubmit={handleSubmit} className={`space-y-3 ${ADMIN_CARD}`}>
         <div>
           <label className={ADMIN_LABEL}>Type</label>
-          <div className="flex gap-4 text-sm text-neutral-700">
+          <div className="flex gap-4 text-sm text-[var(--admin-text-muted)]">
             {(Object.keys(TYPE_LABEL) as ManualItemType[]).map((value) => (
               <label key={value} className="flex items-center gap-1.5">
                 <input
@@ -140,13 +142,17 @@ export function AdminAddManualItemPage() {
           {createItem.isPending ? 'Adding...' : `Add ${TYPE_LABEL[type].toLowerCase()}`}
         </button>
 
-        {createItem.isError && <p className="text-sm text-red-600">Failed to add item.</p>}
+        {createItem.isError && (
+          <p className="text-sm text-[var(--admin-accent-700)]">Failed to add item.</p>
+        )}
       </form>
 
       {addedTitles.length > 0 && (
         <div className="mt-8">
-          <h2 className="mb-2 text-lg font-semibold text-neutral-900">Added this session</h2>
-          <ul className="space-y-1 text-sm text-neutral-600">
+          <h2 className="mb-2 text-lg font-semibold text-[var(--admin-text)]">
+            Added this session
+          </h2>
+          <ul className="space-y-1 text-sm text-[var(--admin-text-muted)]">
             {addedTitles.map((added) => (
               <li key={added.id} className="flex items-center gap-3">
                 <span>{added.title}</span>

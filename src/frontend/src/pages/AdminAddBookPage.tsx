@@ -91,7 +91,7 @@ export function AdminAddBookPage() {
           &larr; Back
         </Link>
       </p>
-      <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Add book</h1>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-[var(--admin-text)]">Add book</h1>
 
       <div className="mb-4">
         <label className={ADMIN_LABEL}>Adding to</label>
@@ -129,18 +129,18 @@ export function AdminAddBookPage() {
             </button>
           </div>
           {lookupNotFound && (
-            <p className="mt-1 text-sm text-neutral-500">
+            <p className="mt-1 text-sm text-[var(--admin-text-muted)]">
               No book found for this ISBN -- fill in the fields below manually.
             </p>
           )}
           {lookup.isError && !lookupNotFound && (
-            <p className="mt-1 text-sm text-red-600">
+            <p className="mt-1 text-sm text-[var(--admin-accent-700)]">
               Lookup failed -- try again, or add manually.
             </p>
           )}
         </div>
 
-        {coverUrl && <img src={coverUrl} alt="" width={90} className="rounded" />}
+        {coverUrl && <img src={coverUrl} alt="" width={90} />}
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
@@ -198,14 +198,18 @@ export function AdminAddBookPage() {
             {createItem.isPending ? 'Adding...' : 'Add book'}
           </button>
 
-          {createItem.isError && <p className="text-sm text-red-600">Failed to add book.</p>}
+          {createItem.isError && (
+            <p className="text-sm text-[var(--admin-accent-700)]">Failed to add book.</p>
+          )}
         </form>
       </div>
 
       {addedTitles.length > 0 && (
         <div className="mt-8">
-          <h2 className="mb-2 text-lg font-semibold text-neutral-900">Added this session</h2>
-          <ul className="space-y-1 text-sm text-neutral-600">
+          <h2 className="mb-2 text-lg font-semibold text-[var(--admin-text)]">
+            Added this session
+          </h2>
+          <ul className="space-y-1 text-sm text-[var(--admin-text-muted)]">
             {addedTitles.map((added) => (
               <li key={added.id} className="flex items-center gap-3">
                 <span>{added.title}</span>

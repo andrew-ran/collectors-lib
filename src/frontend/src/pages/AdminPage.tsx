@@ -18,8 +18,8 @@ export function AdminPage() {
     <div className={ADMIN_PAGE}>
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900">Admin</h1>
-          <p className="mt-1 text-neutral-500">Welcome, {admin?.name ?? '...'}.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--admin-text)]">Admin</h1>
+          <p className="mt-1 text-[var(--admin-text-muted)]">Welcome, {admin?.name ?? '...'}.</p>
         </div>
         <button
           onClick={() => logout.mutate()}

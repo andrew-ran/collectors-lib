@@ -78,7 +78,9 @@ export function AdminAddItemPage() {
           &larr; Back
         </Link>
       </p>
-      <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Add item (IGDB search)</h1>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-[var(--admin-text)]">
+        Add item (IGDB search)
+      </h1>
 
       <div className="mb-4">
         <label className={ADMIN_LABEL}>Adding to</label>
@@ -103,10 +105,10 @@ export function AdminAddItemPage() {
         className={ADMIN_INPUT}
       />
 
-      {isFetching && <p className="mt-3 text-sm text-neutral-500">Searching...</p>}
+      {isFetching && <p className="mt-3 text-sm text-[var(--admin-text-muted)]">Searching...</p>}
 
       {isSearchError && (
-        <p className="mt-3 text-sm text-red-600">
+        <p className="mt-3 text-sm text-[var(--admin-accent-700)]">
           Search failed
           {isAxiosError(searchError)
             ? ` (${searchError.response?.status ?? 'network error'}: ${
@@ -118,7 +120,7 @@ export function AdminAddItemPage() {
       )}
 
       {!isFetching && !isSearchError && debouncedQuery && results?.length === 0 && (
-        <p className="mt-3 text-sm text-neutral-500">No results.</p>
+        <p className="mt-3 text-sm text-[var(--admin-text-muted)]">No results.</p>
       )}
 
       <ul className="mt-2 space-y-1">
@@ -126,18 +128,18 @@ export function AdminAddItemPage() {
           <li key={result.igdb_id}>
             <button
               onClick={() => selectResult(result)}
-              className="flex w-full items-center gap-3 rounded-lg border border-transparent p-2 text-left hover:border-neutral-200 hover:bg-neutral-50"
+              className="flex w-full items-center gap-3 border border-transparent p-2 text-left hover:border-[var(--admin-divider)] hover:bg-[var(--admin-neutral-50)]"
             >
               {result.cover_url ? (
-                <img src={result.cover_url} alt="" width={45} className="rounded" />
+                <img src={result.cover_url} alt="" width={45} />
               ) : (
-                <div className="h-16 w-[45px] rounded bg-neutral-200" />
+                <div className="h-16 w-[45px] bg-[var(--admin-neutral-200)]" />
               )}
               <span>
-                <strong className="text-neutral-900">{result.name}</strong>
+                <strong className="text-[var(--admin-text)]">{result.name}</strong>
                 {result.year ? ` (${result.year})` : ''}
                 <br />
-                <small className="text-neutral-500">
+                <small className="text-[var(--admin-text-muted)]">
                   {result.platforms.map((p) => p.abbreviation ?? p.name).join(', ') ||
                     'No platforms listed'}
                 </small>
@@ -150,11 +152,9 @@ export function AdminAddItemPage() {
       {selected && (
         <div className={`mt-4 space-y-3 ${ADMIN_CARD}`}>
           <div className="flex gap-4">
-            {selected.cover_url && (
-              <img src={selected.cover_url} alt="" width={90} className="rounded" />
-            )}
+            {selected.cover_url && <img src={selected.cover_url} alt="" width={90} />}
             <div>
-              <strong className="text-neutral-900">{selected.name}</strong>
+              <strong className="text-[var(--admin-text)]">{selected.name}</strong>
               {selected.year ? ` (${selected.year})` : ''}
             </div>
           </div>
@@ -188,14 +188,18 @@ export function AdminAddItemPage() {
             </button>
           </div>
 
-          {createItem.isError && <p className="text-sm text-red-600">Failed to add item.</p>}
+          {createItem.isError && (
+            <p className="text-sm text-[var(--admin-accent-700)]">Failed to add item.</p>
+          )}
         </div>
       )}
 
       {addedItemIds.length > 0 && (
         <div className="mt-8">
-          <h2 className="mb-2 text-lg font-semibold text-neutral-900">Added this session</h2>
-          <ul className="space-y-1 text-sm text-neutral-600">
+          <h2 className="mb-2 text-lg font-semibold text-[var(--admin-text)]">
+            Added this session
+          </h2>
+          <ul className="space-y-1 text-sm text-[var(--admin-text-muted)]">
             {addedItemIds.map((id) => (
               <AddedItemStatus key={id} itemId={id} />
             ))}

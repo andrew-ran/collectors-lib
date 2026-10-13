@@ -10,7 +10,7 @@ import {
 import { ADMIN_BUTTON_PRIMARY, ADMIN_CARD, ADMIN_INPUT, ADMIN_LABEL } from './adminUi'
 
 const ROW_BUTTON =
-  'rounded-full border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50'
+  'rounded-full border border-[var(--admin-divider)] bg-white px-2.5 py-1 text-xs font-medium text-[var(--admin-text-muted)] hover:bg-[var(--admin-neutral-50)] disabled:cursor-not-allowed disabled:opacity-50'
 
 const AVATAR_THUMB = 'h-9 w-9 rounded-full object-cover'
 
@@ -44,19 +44,19 @@ export function GiftersAdmin() {
 
   return (
     <div className={`mt-8 space-y-4 ${ADMIN_CARD}`}>
-      <h2 className="text-lg font-semibold text-neutral-900">Gifters</h2>
+      <h2 className="text-lg font-semibold text-[var(--admin-text)]">Gifters</h2>
 
       {gifters && gifters.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-neutral-200">
+        <div className="overflow-hidden border border-[var(--admin-divider)]">
           <table className="w-full text-left text-sm">
-            <thead className="bg-white text-neutral-500">
+            <thead className="bg-white text-[var(--admin-text-muted)]">
               <tr>
                 <th className="px-3 py-2 font-medium">Avatar</th>
                 <th className="px-3 py-2 font-medium">Name</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100 bg-white">
+            <tbody className="divide-y divide-[var(--admin-divider)] bg-white">
               {gifters.map((gifter) => (
                 <GifterRow key={gifter.id} gifter={gifter} />
               ))}
@@ -89,7 +89,9 @@ export function GiftersAdmin() {
           {createGifter.isPending ? 'Adding...' : 'Add'}
         </button>
       </form>
-      {createGifter.isError && <p className="text-sm text-red-600">Failed to create gifter.</p>}
+      {createGifter.isError && (
+        <p className="text-sm text-[var(--admin-accent-700)]">Failed to create gifter.</p>
+      )}
     </div>
   )
 }
@@ -137,7 +139,7 @@ function GifterRow({ gifter }: { gifter: Gifter }) {
           <img src={gifter.avatar_url} alt="" className={AVATAR_THUMB} />
         ) : (
           <span
-            className={`${AVATAR_THUMB} flex items-center justify-center bg-neutral-200 text-xs font-medium text-neutral-500`}
+            className={`${AVATAR_THUMB} flex items-center justify-center bg-[var(--admin-neutral-200)] text-xs font-medium text-[var(--admin-text-muted)]`}
           >
             {gifter.name.charAt(0).toUpperCase()}
           </span>
@@ -167,7 +169,7 @@ function GifterRow({ gifter }: { gifter: Gifter }) {
             </button>
           </div>
         ) : (
-          <span className="font-medium text-neutral-900">{gifter.name}</span>
+          <span className="font-medium text-[var(--admin-text)]">{gifter.name}</span>
         )}
       </td>
       <td className="space-x-2 px-3 py-2 text-right">

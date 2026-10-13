@@ -9,7 +9,7 @@ import {
   ADMIN_LABEL,
 } from '../components/Admin/adminUi'
 
-/** US-100. Minimal Tailwind pass via components/Admin/adminUi.ts -- the
+/** US-100. Styled with the Modernist tokens from components/Admin/adminUi.ts -- the
  * admin screens weren't part of the design sprint (only the public views
  * were mocked up), so this is deliberately plain, not a real design. */
 export function AdminLoginPage() {
@@ -25,7 +25,9 @@ export function AdminLoginPage() {
 
   return (
     <div className="mx-auto max-w-sm px-4 py-16">
-      <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Admin login</h1>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-[var(--admin-text)]">
+        Admin login
+      </h1>
       <form onSubmit={handleSubmit} className={`space-y-4 ${ADMIN_CARD}`}>
         <div>
           <label htmlFor="email" className={ADMIN_LABEL}>
@@ -54,7 +56,7 @@ export function AdminLoginPage() {
           />
         </div>
         {login.isError && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-[var(--admin-accent-700)]">
             Invalid email or password.
           </p>
         )}
