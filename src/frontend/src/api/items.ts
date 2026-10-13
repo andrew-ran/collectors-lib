@@ -229,6 +229,10 @@ export interface FilterOptions {
   platforms: PlatformRef[]
   genres: GenreRef[]
   franchises: FranchiseRef[]
+  /** US-009 -- whether any item in the collection has data for the
+   * Wishlist-only sorts; the sort dropdown hides them otherwise. */
+  has_desire_scores: boolean
+  has_price_estimates: boolean
 }
 
 /** US-006a -- only values actually present among the current collection's

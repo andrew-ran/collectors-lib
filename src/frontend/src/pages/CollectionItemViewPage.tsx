@@ -48,6 +48,20 @@ const SORT_LABELS: Record<SortOrder, string> = {
 /** US-009 -- Wishlist-only sort modes. */
 const WISHLIST_ONLY_SORTS: SortOrder[] = ['wanted', 'unwanted', 'price_asc', 'price_desc']
 
+/** US-009 -- Wishlist-only sorts need a wishlist collection and at least one
+ * item with the underlying data (desire score / price estimate). */
+function isSortAvailable(
+  value: SortOrder,
+  isWishlist: boolean,
+  options: FilterOptions | undefined,
+): boolean {
+  if (!WISHLIST_ONLY_SORTS.includes(value)) return true
+  if (!isWishlist) return false
+  if (value === 'wanted' || value === 'unwanted') return Boolean(options?.has_desire_scores)
+
+  return Boolean(options?.has_price_estimates)
+}
+
 function toIntOrNull(value: string | null): number | null {
   if (!value) return null
   const n = Number(value)
@@ -594,7 +608,7 @@ function FilterSortBar({
         {(close) => (
           <ul>
             {(Object.keys(SORT_LABELS) as SortOrder[])
-              .filter((value) => isWishlist || !WISHLIST_ONLY_SORTS.includes(value))
+              .filter((value) => isSortAvailable(value, isWishlist, options) || value === sort)
               .map((value) => (
                 <li key={value}>
                   <DropdownItem
