@@ -144,9 +144,10 @@ export interface ItemSummary {
   purchase_price: string | null
 }
 
-/** US-009 -- "My Collection" set; Wishlist's desire-score/price options
- * aren't implemented yet (need US-020/021's wishlist fields first). */
-export type SortOrder = 'newest' | 'oldest' | 'az' | 'za'
+/** US-009 -- the first four apply to every collection; the rest are
+ * Wishlist-only (desire score / estimated price). */
+export type SortOrder =
+  'newest' | 'oldest' | 'az' | 'za' | 'wanted' | 'unwanted' | 'price_asc' | 'price_desc'
 
 export interface ItemFilters {
   platformId?: number | null

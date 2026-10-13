@@ -39,7 +39,14 @@ const SORT_LABELS: Record<SortOrder, string> = {
   oldest: 'Oldest added first',
   az: 'A → Z',
   za: 'Z → A',
+  wanted: 'Most wanted first',
+  unwanted: 'Least wanted first',
+  price_asc: 'Price: low to high',
+  price_desc: 'Price: high to low',
 }
+
+/** US-009 -- Wishlist-only sort modes. */
+const WISHLIST_ONLY_SORTS: SortOrder[] = ['wanted', 'unwanted', 'price_asc', 'price_desc']
 
 function toIntOrNull(value: string | null): number | null {
   if (!value) return null
@@ -84,10 +91,6 @@ function toIntOrNull(value: string | null): number | null {
  *
  * Deliberately scoped down for this pass -- explicitly NOT included yet
  * (see docs/tz/BACKLOG.md Phase 2):
- * - Wishlist's Most/Least-wanted and Price sort options (US-009) -- the
- *   fields exist now, but the sort UI itself isn't wired up in this pass,
- *   so US-032's table columns for those two sorts aren't reachable yet
- *   (see docs/tz/TECH_DEBT.md)
  * - Real test data for the acquisition badge needs US-151 (mark received)
  *   to exist, or a manually seeded wishlist_details row + collection move
  * - Mobile Item View fetches each stacked card's full detail individually
@@ -106,7 +109,7 @@ export function CollectionItemViewPage() {
   const platformId = toIntOrNull(searchParams.get('platform'))
   const genreId = toIntOrNull(searchParams.get('genre'))
   const franchiseId = toIntOrNull(searchParams.get('franchise'))
-  const sort = (searchParams.get('sort') as SortOrder | null) ?? 'newest'
+  const rawSort = (searchParams.get('sort') as SortOrder | null) ?? 'newest'
   // US-011 -- set when a Related tag was clicked; ItemBrowser resolves it
   // to a starting position once its item list has loaded.
   const itemIdParam = toIntOrNull(searchParams.get('item'))
@@ -117,6 +120,12 @@ export function CollectionItemViewPage() {
     collections?.find((c) => c.is_default) ||
     collections?.[0] ||
     null
+
+  // A Wishlist-only sort left in the URL (e.g. after switching collection)
+  // falls back to the default instead of ordering a regular collection by
+  // data it doesn't have.
+  const sort: SortOrder =
+    !collection?.is_wishlist && WISHLIST_ONLY_SORTS.includes(rawSort) ? 'newest' : rawSort
 
   const { data: filterOptions } = useFilterOptions(collection?.id ?? null)
   const hasActiveFilters = Boolean(platformId || genreId || franchiseId)
@@ -190,6 +199,7 @@ export function CollectionItemViewPage() {
             genreId={genreId}
             franchiseId={franchiseId}
             sort={sort}
+            isWishlist={Boolean(collection?.is_wishlist)}
             onPlatformChange={(id) => updateParams({ platform: id })}
             onGenreChange={(id) => updateParams({ genre: id })}
             onFranchiseChange={(id) => updateParams({ franchise: id })}
@@ -458,6 +468,7 @@ function FilterSortBar({
   genreId,
   franchiseId,
   sort,
+  isWishlist,
   onPlatformChange,
   onGenreChange,
   onFranchiseChange,
@@ -470,6 +481,7 @@ function FilterSortBar({
   genreId: number | null
   franchiseId: number | null
   sort: SortOrder
+  isWishlist: boolean
   onPlatformChange: (id: string | null) => void
   onGenreChange: (id: string | null) => void
   onFranchiseChange: (id: string | null) => void
@@ -581,19 +593,21 @@ function FilterSortBar({
       <Dropdown trigger={SORT_LABELS[sort]}>
         {(close) => (
           <ul>
-            {(Object.keys(SORT_LABELS) as SortOrder[]).map((value) => (
-              <li key={value}>
-                <DropdownItem
-                  active={value === sort}
-                  onClick={() => {
-                    onSortChange(value)
-                    close()
-                  }}
-                >
-                  {SORT_LABELS[value]}
-                </DropdownItem>
-              </li>
-            ))}
+            {(Object.keys(SORT_LABELS) as SortOrder[])
+              .filter((value) => isWishlist || !WISHLIST_ONLY_SORTS.includes(value))
+              .map((value) => (
+                <li key={value}>
+                  <DropdownItem
+                    active={value === sort}
+                    onClick={() => {
+                      onSortChange(value)
+                      close()
+                    }}
+                  >
+                    {SORT_LABELS[value]}
+                  </DropdownItem>
+                </li>
+              ))}
           </ul>
         )}
       </Dropdown>
@@ -1182,9 +1196,7 @@ function MobileCollectionView({
 }
 
 /** US-032 -- Item Number + Title always shown, plus two columns that depend
- * on collection type and active sort. Price/Most-wanted sort modes aren't
- * wired up yet (see docs/tz/TECH_DEBT.md), so any sort besides A-Z/Z-A
- * falls back to the "Newest/Oldest added" column pair for a Wishlist. */
+ * on collection type and active sort (see the US-032 table). */
 function mobileTableColumns(
   isWishlist: boolean,
   sort: SortOrder,
@@ -1218,7 +1230,16 @@ function mobileTableColumns(
     }
   }
 
-  if (sort === 'az' || sort === 'za') {
+  if (sort === 'price_asc' || sort === 'price_desc') {
+    return {
+      thirdLabel: 'Price',
+      fourthLabel: 'Desire',
+      thirdValue: priceValue,
+      fourthValue: desireValue,
+    }
+  }
+
+  if (sort === 'az' || sort === 'za' || sort === 'wanted' || sort === 'unwanted') {
     return {
       thirdLabel: 'Desire',
       fourthLabel: 'Price',
