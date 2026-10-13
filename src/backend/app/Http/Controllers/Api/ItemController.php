@@ -129,8 +129,11 @@ class ItemController extends Controller
      * created) -- the adjacent spec rule about items with no date sorting
      * alphabetically after dated ones only makes sense against a nullable
      * date, and acquired_date is the nullable one (created_at never is).
-     * Wishlist's desire-score/price sort options aren't implemented yet --
-     * see docs/tz/BACKLOG.md, they need US-020/021's wishlist fields first.
+     * Wishlist-only modes: `wanted`/`unwanted` (desire_score desc/asc) and
+     * `price_asc`/`price_desc` (price_used_estimate, falling back to
+     * price_new_estimate). Items without the value always sort last,
+     * alphabetically among themselves. Correlated subqueries rather than a
+     * join so the paginated `items.*` select and eager loads stay untouched.
      */
     private function applySort(Builder $query, string $sort): void
     {
@@ -140,10 +143,24 @@ class ItemController extends Controller
                 ->orderBy('title'),
             'az' => $query->orderBy('title'),
             'za' => $query->orderByDesc('title'),
+            'wanted' => $this->orderByWishlistValue($query, 'desire_score', 'desc'),
+            'unwanted' => $this->orderByWishlistValue($query, 'desire_score', 'asc'),
+            'price_asc' => $this->orderByWishlistValue($query, 'COALESCE(price_used_estimate, price_new_estimate)', 'asc'),
+            'price_desc' => $this->orderByWishlistValue($query, 'COALESCE(price_used_estimate, price_new_estimate)', 'desc'),
             default => $query->orderByRaw('acquired_date IS NULL')
                 ->orderByDesc('acquired_date')
                 ->orderBy('title'),
         };
+    }
+
+    /** $expression is a fixed literal from applySort(), never user input. */
+    private function orderByWishlistValue(Builder $query, string $expression, string $direction): void
+    {
+        $value = "(SELECT {$expression} FROM wishlist_details WHERE wishlist_details.item_id = items.id)";
+
+        $query->orderByRaw("{$value} IS NULL")
+            ->orderByRaw("{$value} {$direction}")
+            ->orderBy('title');
     }
 
     public function show(Item $item)

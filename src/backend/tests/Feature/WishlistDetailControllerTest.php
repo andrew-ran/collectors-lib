@@ -145,3 +145,27 @@ test('editing the acquisition is rejected for a self-purchased item', function (
     $this->putJson("/api/items/{$item->id}/acquisition", ['thank_you_note' => 'x'])
         ->assertStatus(422);
 });
+
+test('US-009 wishlist sort modes order by desire score and price, nulls last', function () {
+    $wishlist = Collection::factory()->wishlist()->create();
+    $mk = fn (string $title, ?int $desire, ?string $new, ?string $used) => tap(
+        Item::factory()->create(['collection_id' => $wishlist->id, 'title' => $title]),
+        fn ($item) => $item->wishlistDetail()->create([
+            'desire_score' => $desire,
+            'price_new_estimate' => $new,
+            'price_used_estimate' => $used,
+        ]),
+    );
+    $mk('A', 10, '50.00', null);
+    $mk('B', 90, '80.00', '20.00');
+    $mk('C', null, null, null);
+
+    $titles = fn (string $sort) => collect(
+        $this->getJson("/api/items?collection_id={$wishlist->id}&sort={$sort}")->json('data'),
+    )->pluck('title')->all();
+
+    expect($titles('wanted'))->toBe(['B', 'A', 'C']);
+    expect($titles('unwanted'))->toBe(['A', 'B', 'C']);
+    expect($titles('price_asc'))->toBe(['B', 'A', 'C']);
+    expect($titles('price_desc'))->toBe(['A', 'B', 'C']);
+});
