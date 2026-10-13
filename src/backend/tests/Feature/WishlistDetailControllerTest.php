@@ -169,3 +169,14 @@ test('US-009 wishlist sort modes order by desire score and price, nulls last', f
     expect($titles('price_asc'))->toBe(['B', 'A', 'C']);
     expect($titles('price_desc'))->toBe(['A', 'B', 'C']);
 });
+
+test('US-009 filter options report whether wishlist sort data exists', function () {
+    $wishlist = Collection::factory()->wishlist()->create();
+    $item = Item::factory()->create(['collection_id' => $wishlist->id]);
+    $item->wishlistDetail()->create(['desire_score' => 40]);
+
+    $this->getJson("/api/items/filter-options?collection_id={$wishlist->id}")
+        ->assertOk()
+        ->assertJsonPath('has_desire_scores', true)
+        ->assertJsonPath('has_price_estimates', false);
+});

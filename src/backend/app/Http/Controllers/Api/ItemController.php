@@ -13,6 +13,7 @@ use App\Models\Genre;
 use App\Models\Item;
 use App\Models\ItemMetadata;
 use App\Models\Platform;
+use App\Models\WishlistDetail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -120,7 +121,24 @@ class ItemController extends Controller
             'platforms' => $platforms,
             'genres' => $genres,
             'franchises' => $franchises,
+            // US-009 -- the Wishlist-only sort options are hidden unless at
+            // least one item in the collection has the data to sort by.
+            'has_desire_scores' => $this->collectionHasWishlistValue($collectionId, 'desire_score'),
+            'has_price_estimates' => $this->collectionHasWishlistValue($collectionId, 'price_used_estimate')
+                || $this->collectionHasWishlistValue($collectionId, 'price_new_estimate'),
         ]);
+    }
+
+    /** $column is a fixed literal from filterOptions(), never user input. */
+    private function collectionHasWishlistValue(int $collectionId, string $column): bool
+    {
+        return WishlistDetail::query()
+            ->whereNotNull($column)
+            ->whereHas('item', fn ($item) => $item->when(
+                $collectionId,
+                fn ($q, $id) => $q->where('collection_id', $id),
+            ))
+            ->exists();
     }
 
     /**
