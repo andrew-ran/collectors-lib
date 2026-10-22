@@ -70,6 +70,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ env.IMAGE_APP }}:latest
+          # Always re-check the base image instead of trusting a local copy.
+          pull: true
           # Reuse unchanged layers (PHP extensions, composer deps) between
           # runs via GitHub's Actions cache instead of rebuilding everything,
           # including the slow arm64-under-QEMU compile steps, every push.

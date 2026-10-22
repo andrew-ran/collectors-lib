@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ItemSummary` (`api/items.ts`) gained `type`/`purchase_price`, and `useAdminItemList` gained `platformId`/`genreId`/`franchiseId` filters, for the redesigned list screen's type pill/Price column/filter row -- `ItemController::index()` already supported all of this independently of `collection_id`, it just wasn't exposed from the admin list hook/type yet (same "not the API" situation as earlier admin-list additions).
 
 ### Security
+- Pinned the app image to `php:8.3.36-fpm` (was floating `php:8.3-fpm`) to pick up the 2026-10-21 critical PHP fixes (CVE-2026-109618, CVE-2026-109619, remote code execution); the CI app build now passes `pull: true` so the base image is always re-checked.
 - Root-level `.gitignore` now covers `/.env` (Docker Compose's own env file for `docker-compose.prod.yml`'s `DB_PASSWORD`/`DB_ROOT_PASSWORD` substitution) -- previously uncovered by either nested `.gitignore` (`src/backend`, `src/frontend`), which only ignore their own `.env` files. Never actually committed, caught during a post-launch security review.
 
 ### Changed

@@ -1,4 +1,8 @@
-FROM php:8.3-fpm
+# Pinned to the exact patch release (8.3.36 = the 2026-10-21 fix for the
+# critical CVE-2026-109618 / CVE-2026-109619 "PHP2Shell" RCEs) so a stale
+# cached base layer can never keep an older, vulnerable PHP. Bump this
+# deliberately when new 8.3.x security releases come out.
+FROM php:8.3.36-fpm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
