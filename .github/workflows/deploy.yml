@@ -40,6 +40,8 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # A hung emulated step once ran for 1.5h+ before being noticed; fail fast.
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write

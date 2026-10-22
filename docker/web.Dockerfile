@@ -11,7 +11,13 @@
 # the nginx config from docker/. See the build-push-action step in the
 # deploy workflow for the exact `context`/`file` values.
 
-FROM node:22-alpine AS build
+# --platform=$BUILDPLATFORM: the SPA bundle is plain static JS/CSS, identical
+# for every architecture, so it is built once on the runner's native arch
+# instead of once per target platform. Running `npm ci` for linux/arm64
+# under QEMU emulation crashed with "qemu: uncaught target signal 4
+# (Illegal instruction)" and hung the CI job; only the final nginx stage is
+# per-platform, and it just copies files (nothing executes under emulation).
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /app
 COPY src/frontend/package*.json ./
 RUN npm ci
